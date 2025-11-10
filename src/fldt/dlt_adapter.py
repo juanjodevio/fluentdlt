@@ -1,9 +1,9 @@
 """DLT-Hub integration adapter for translating Fluent API to DLT pipelines."""
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 import dlt
 from dlt.sources import filesystem
-from dlt.sources.sql_database import sql_database
+from dlt.sources.sql_database import sql_database, sql_table
 
 
 class DLTAdapter:
@@ -37,63 +37,130 @@ class DLTAdapter:
         )
 
         # Build DLT sources from source configurations
-        # DLT expects sources (which contain resources), so we'll combine them
         dlt_sources = []
         for source_config in sources:
-            dlt_source = self._build_dlt_resources(source_config)
-            dlt_sources.append(dlt_source)
+            dlt_source = self._build_dlt_source(source_config)
+            if dlt_source:
+                dlt_sources.append(dlt_source)
 
-        # Combine all sources into a single source if multiple sources exist
-        if len(dlt_sources) == 1:
-            combined_source = dlt_sources[0]
-        else:
-            # Combine multiple sources - DLT allows combining sources
-            # For now, we'll run them sequentially or combine resources
-            # This is a simplified approach - in production you might want more sophisticated combining
-            combined_source = dlt_sources[0]
-            for source in dlt_sources[1:]:
-                # Merge resources from additional sources
-                if hasattr(source, 'resources') and hasattr(combined_source, 'resources'):
-                    combined_source.resources.update(source.resources)
+        if not dlt_sources:
+            raise ValueError("No valid sources to run")
 
-        # Run the pipeline
+        # Collect all resources from all sources
+        # DLT's pipeline.run() can accept a list of sources/resources
+        all_resources = []
+        for source in dlt_sources:
+            if hasattr(source, 'resources') and source.resources:
+                # Extract all resources from this source
+                all_resources.extend(source.resources.values())
+            else:
+                # If it's a single resource or source without resources attribute
+                all_resources.append(source)
+
+        # Run the pipeline with all resources
         write_disposition = destination.get("write_disposition", "append")
         info = pipeline.run(
-            combined_source,
+            all_resources,
             write_disposition=write_disposition
         )
 
         return info
 
-    def _build_dlt_resources(
-        self,
-        source_config: Dict[str, Any]
-    ) -> Any:
-        """Build DLT resources from a source configuration.
+    def _build_dlt_source(self, source_config: Dict[str, Any]) -> Any:
+        """Build a DLT source from a source configuration.
 
         Args:
             source_config: Source configuration dictionary
 
         Returns:
-            DLT resource(s) - can be a single resource or list of resources
+            DLT source
         """
         source_type = source_config["type"]
 
-        if source_type == "filesystem":
-            return self._build_filesystem_resource(source_config)
-        elif source_type == "sql_database":
+        if source_type == "sql_database":
             return self._build_sql_database_source(source_config)
-        elif source_type == "database_table":
-            # Legacy support for old API
-            return self._build_table_resource(source_config)
-        elif source_type == "database_query":
-            # Legacy support for old API
-            return self._build_query_resource(source_config)
+        elif source_type == "filesystem":
+            return self._build_filesystem_source(source_config)
         else:
             raise ValueError(f"Unknown source type: {source_type}")
 
-    def _build_filesystem_resource(self, config: Dict[str, Any]) -> Any:
-        """Build a filesystem (S3) resource.
+    def _build_sql_database_source(self, config: Dict[str, Any]) -> Any:
+        """Build a DLT sql_database source with multiple resources.
+
+        Args:
+            config: Source configuration with credentials and resources list
+
+        Returns:
+            DLT sql_database source
+        """
+        credentials = config["credentials"]
+        resources_config = config.get("resources", [])
+
+        # Create database source
+        source = sql_database(credentials)
+
+        # Add all resources (tables and queries)
+        table_names = []
+        
+        for resource_config in resources_config:
+            resource_type = resource_config.get("type")
+            
+            if resource_type == "table":
+                table_name = resource_config["name"]
+                table_names.append(table_name)
+
+        # Add table resources
+        if table_names:
+            source = source.with_resources(*table_names)
+
+        # Apply hints to table resources
+        for resource_config in resources_config:
+            if resource_config.get("type") == "table":
+                table_name = resource_config["name"]
+                if table_name in source.resources:
+                    resource = source.resources[table_name]
+                    hints = {}
+                    
+                    if "incremental" in resource_config:
+                        hints["incremental"] = dlt.sources.incremental(
+                            resource_config["incremental"]
+                        )
+                    if "primary_key" in resource_config:
+                        hints["primary_key"] = resource_config["primary_key"]
+                    
+                    if hints:
+                        resource = resource.apply_hints(**hints)
+                        source.resources[table_name] = resource
+
+        # Handle query resources using sql_table for custom SQL queries
+        for resource_config in resources_config:
+            if resource_config.get("type") == "query":
+                query = resource_config["query"]
+                table_name = resource_config["name"]
+                
+                # Use sql_table to execute custom SQL query
+                # sql_table can execute any SQL query and treat the result as a table
+                query_resource = sql_table(
+                    credentials=credentials,
+                    table=f"({query})",  # Wrap query as subquery
+                    table_name=table_name
+                )
+                
+                # Apply hints if provided
+                hints = {}
+                if "primary_key" in resource_config:
+                    hints["primary_key"] = resource_config["primary_key"]
+                
+                if hints:
+                    query_resource = query_resource.apply_hints(**hints)
+                
+                # Add the query resource to the source
+                source.resources[table_name] = query_resource
+
+        return source
+
+    def _build_filesystem_source(self, config: Dict[str, Any]) -> Any:
+        """Build a filesystem (S3) source.
 
         Args:
             config: Source configuration
@@ -133,146 +200,6 @@ class DLTAdapter:
             # Remove the old resource name if it's different
             if first_resource_name != table_name:
                 del source.resources[first_resource_name]
-
-        return source
-
-    def _build_sql_database_source(self, config: Dict[str, Any]) -> Any:
-        """Build a DLT sql_database source with multiple resources.
-
-        Args:
-            config: Source configuration with credentials and resources list
-
-        Returns:
-            DLT sql_database source
-        """
-        credentials = config["credentials"]
-        resources_config = config.get("resources", [])
-
-        # Create database source
-        source = sql_database(credentials)
-
-        # Add all resources (tables and queries)
-        table_names = []
-        query_resources = []
-
-        for resource_config in resources_config:
-            resource_type = resource_config.get("type")
-            
-            if resource_type == "table":
-                table_name = resource_config["name"]
-                table_names.append(table_name)
-                
-                # Store hints for later application
-                if "primary_key" in resource_config or "incremental" in resource_config:
-                    # We'll apply hints after adding the resource
-                    pass
-            elif resource_type == "query":
-                query = resource_config["query"]
-                table_name = resource_config["name"]
-                query_resources.append((query, table_name))
-
-        # Add table resources
-        if table_names:
-            source = source.with_resources(*table_names)
-
-        # Apply hints to table resources
-        for resource_config in resources_config:
-            if resource_config.get("type") == "table":
-                table_name = resource_config["name"]
-                if table_name in source.resources:
-                    resource = source.resources[table_name]
-                    hints = {}
-                    
-                    if "incremental" in resource_config:
-                        hints["incremental"] = dlt.sources.incremental(
-                            resource_config["incremental"]
-                        )
-                    if "primary_key" in resource_config:
-                        hints["primary_key"] = resource_config["primary_key"]
-                    
-                    if hints:
-                        resource = resource.apply_hints(**hints)
-                        source.resources[table_name] = resource
-
-        # Add query resources
-        for query, table_name in query_resources:
-            try:
-                from dlt.sources.sql_database.helpers import table as sql_table
-                query_resource = sql_table(query, table_name)
-                source = source.with_resources(query_resource)
-            except (ImportError, AttributeError):
-                # Fallback: manually add query resource
-                source.resources[table_name] = query
-
-        return source
-
-    def _build_table_resource(self, config: Dict[str, Any]) -> Any:
-        """Build a database table resource.
-
-        Args:
-            config: Source configuration
-
-        Returns:
-            DLT database source
-        """
-        credentials = config["credentials"]
-        table = config["table"]
-        primary_key = config.get("primary_key")
-        incremental = config.get("incremental")
-
-        # Create database source
-        source = sql_database(credentials)
-
-        # Get specific table resource
-        source = source.with_resources(table)
-
-        # Apply hints for incremental loading and primary key
-        if incremental or primary_key:
-            hints = {}
-            if incremental:
-                hints["incremental"] = dlt.sources.incremental(incremental)
-            if primary_key:
-                hints["primary_key"] = primary_key
-            
-            # Apply hints to the source
-            for resource_name in source.resources.keys():
-                resource = source.resources[resource_name]
-                if hints:
-                    resource = resource.apply_hints(**hints)
-                source.resources[resource_name] = resource
-
-        return source
-
-    def _build_query_resource(self, config: Dict[str, Any]) -> Any:
-        """Build a query-based resource.
-
-        Args:
-            config: Source configuration
-
-        Returns:
-            DLT database source with query resource
-        """
-        credentials = config["credentials"]
-        query = config["query"]
-        table_name = config["table_name"]
-
-        # Create database source with custom query
-        # DLT's sql_database supports custom SQL queries via the table() helper
-        # We'll create a source that executes the query
-        source = sql_database(credentials)
-        
-        # Add custom query resource
-        # DLT allows adding custom SQL queries as resources
-        # The exact API may need adjustment based on DLT version
-        try:
-            # Try to add query as a custom resource
-            from dlt.sources.sql_database.helpers import table as sql_table
-            query_resource = sql_table(query, table_name)
-            source = source.with_resources(query_resource)
-        except (ImportError, AttributeError):
-            # Fallback: create source and manually add query resource
-            # This is a workaround - actual implementation depends on DLT API
-            source.resources[table_name] = query
 
         return source
 

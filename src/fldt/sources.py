@@ -8,16 +8,98 @@ class SourceBuilder:
     """Builder class for creating source configurations."""
 
     @staticmethod
-    def build_s3_source(
+    def build_sql_database_source(
+        credentials: str,
+        resources: Optional[List[Dict[str, Any]]] = None
+    ) -> Dict[str, Any]:
+        """Build configuration for a DLT sql_database source.
+
+        Args:
+            credentials: Database connection string
+            resources: Optional list of resource configurations
+
+        Returns:
+            Source configuration dictionary
+        """
+        config = {
+            "type": "sql_database",
+            "credentials": credentials,
+            "resources": resources or []
+        }
+        return config
+
+    @staticmethod
+    def add_table_resource(
+        source: Dict[str, Any],
+        table: str,
+        primary_key: Optional[str] = None,
+        incremental: Optional[str] = None,
+        **kwargs
+    ) -> None:
+        """Add a table resource to a sql_database source.
+
+        Args:
+            source: Source configuration dictionary (modified in place)
+            table: Table name (schema.table format)
+            primary_key: Optional primary key column
+            incremental: Optional incremental column for incremental loads
+            **kwargs: Additional resource arguments
+        """
+        if source.get("type") != "sql_database":
+            raise ValueError("source must be a sql_database source")
+
+        resource = {
+            "type": "table",
+            "name": table,
+            **kwargs
+        }
+
+        if primary_key:
+            resource["primary_key"] = primary_key
+
+        if incremental:
+            resource["incremental"] = incremental
+
+        source.setdefault("resources", []).append(resource)
+
+    @staticmethod
+    def add_query_resource(
+        source: Dict[str, Any],
+        query: str,
+        table_name: str,
+        **kwargs
+    ) -> None:
+        """Add a query resource to a sql_database source.
+
+        Args:
+            source: Source configuration dictionary (modified in place)
+            query: SQL query to execute
+            table_name: Name for the resulting table
+            **kwargs: Additional resource arguments
+        """
+        if source.get("type") != "sql_database":
+            raise ValueError("source must be a sql_database source")
+
+        resource = {
+            "type": "query",
+            "name": table_name,
+            "query": query,
+            **kwargs
+        }
+
+        source.setdefault("resources", []).append(resource)
+
+    @staticmethod
+    def build_filesystem_source(
         url_glob: str,
         table_name: Optional[str] = None,
         file_format: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
-        """Build configuration for an S3 source.
+        """Build configuration for a filesystem (S3) source.
 
         Args:
-            url_glob: S3 URL pattern
+            url_glob: S3 URL pattern (e.g., "s3://bucket/data/*.csv")
             table_name: Optional table name
             file_format: Optional file format (auto-detected if not provided)
             **kwargs: Additional source arguments
@@ -44,160 +126,6 @@ class SourceBuilder:
         return config
 
     @staticmethod
-    def build_database_source(
-        credentials: str,
-        tables: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
-        """Build configuration for a DLT sql_database source.
-
-        Args:
-            credentials: Database connection string
-            tables: Optional list of table names to include initially
-
-        Returns:
-            Database source configuration dictionary
-        """
-        config = {
-            "type": "sql_database",
-            "credentials": credentials,
-            "resources": []
-        }
-
-        # Add initial tables if provided
-        if tables:
-            for table in tables:
-                config["resources"].append({
-                    "type": "table",
-                    "name": table
-                })
-
-        return config
-
-    @staticmethod
-    def add_table_resource(
-        db_source: Dict[str, Any],
-        table: str,
-        primary_key: Optional[str] = None,
-        incremental: Optional[str] = None,
-        **kwargs
-    ) -> None:
-        """Add a table resource to an existing database source.
-
-        Args:
-            db_source: Database source configuration dictionary (modified in place)
-            table: Table name (schema.table format)
-            primary_key: Optional primary key column
-            incremental: Optional incremental column for incremental loads
-            **kwargs: Additional resource arguments
-        """
-        if db_source.get("type") != "sql_database":
-            raise ValueError("db_source must be a sql_database source")
-
-        resource = {
-            "type": "table",
-            "name": table,
-            **kwargs
-        }
-
-        if primary_key:
-            resource["primary_key"] = primary_key
-
-        if incremental:
-            resource["incremental"] = incremental
-
-        db_source.setdefault("resources", []).append(resource)
-
-    @staticmethod
-    def add_query_resource(
-        db_source: Dict[str, Any],
-        query: str,
-        table_name: str,
-        **kwargs
-    ) -> None:
-        """Add a query resource to an existing database source.
-
-        Args:
-            db_source: Database source configuration dictionary (modified in place)
-            query: SQL query to execute
-            table_name: Name for the resulting table
-            **kwargs: Additional resource arguments
-        """
-        if db_source.get("type") != "sql_database":
-            raise ValueError("db_source must be a sql_database source")
-
-        resource = {
-            "type": "query",
-            "name": table_name,
-            "query": query,
-            **kwargs
-        }
-
-        db_source.setdefault("resources", []).append(resource)
-
-    @staticmethod
-    def build_table_source(
-        credentials: str,
-        table: str,
-        primary_key: Optional[str] = None,
-        incremental: Optional[str] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
-        """Build configuration for a database table source.
-
-        Args:
-            credentials: Database connection string
-            table: Table name (schema.table format)
-            primary_key: Optional primary key column
-            incremental: Optional incremental column for incremental loads
-            **kwargs: Additional source arguments
-
-        Returns:
-            Source configuration dictionary
-        """
-        config = {
-            "type": "database_table",
-            "credentials": credentials,
-            "table": table,
-            **kwargs
-        }
-
-        if primary_key:
-            config["primary_key"] = primary_key
-
-        if incremental:
-            config["incremental"] = incremental
-
-        return config
-
-    @staticmethod
-    def build_query_source(
-        credentials: str,
-        query: str,
-        table_name: str,
-        **kwargs
-    ) -> Dict[str, Any]:
-        """Build configuration for a query-based source.
-
-        Args:
-            credentials: Database connection string
-            query: SQL query to execute
-            table_name: Name for the resulting table
-            **kwargs: Additional source arguments
-
-        Returns:
-            Source configuration dictionary
-        """
-        config = {
-            "type": "database_query",
-            "credentials": credentials,
-            "query": query,
-            "table_name": table_name,
-            **kwargs
-        }
-
-        return config
-
-    @staticmethod
     def _detect_file_format(url: str) -> str:
         """Detect file format from URL extension.
 
@@ -208,13 +136,13 @@ class SourceBuilder:
             Detected file format (csv, jsonl, parquet, etc.)
         """
         url_lower = url.lower()
-        if url_lower.endswith(".csv"):
+        if url_lower.endswith(".csv") or "*.csv" in url_lower:
             return "csv"
-        elif url_lower.endswith(".jsonl") or url_lower.endswith(".ndjson"):
+        elif url_lower.endswith(".jsonl") or "*.jsonl" in url_lower or url_lower.endswith(".ndjson"):
             return "jsonl"
-        elif url_lower.endswith(".json"):
+        elif url_lower.endswith(".json") or "*.json" in url_lower:
             return "json"
-        elif url_lower.endswith(".parquet"):
+        elif url_lower.endswith(".parquet") or "*.parquet" in url_lower:
             return "parquet"
         else:
             # Default to csv for unknown formats
@@ -236,6 +164,6 @@ class SourceBuilder:
             filename = match.group(1)
             # Remove common prefixes and clean up
             filename = filename.replace("*", "").replace(".", "_")
-            return filename
+            return filename if filename else "data"
         return "data"
 
