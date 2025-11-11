@@ -1,28 +1,187 @@
+# FluentDLT (`fldt`)
 
-# CURSOR.md — Build Guide for FluentDLT (`fldt`)
+**Fluent Data Loading Toolkit** — Write ETL pipelines that read like English
 
-## 🧭 Goal
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
-Build a **fluent, Pythonic DSL wrapper around [DLT-Hub](https://github.com/dlt-hub/dlt)**  
-that lets users express pipelines like this:
+---
+
+## 🧠 Philosophy
+
+**FluentDLT** bridges readability and performance. Instead of YAML or heavy orchestration, you write pipelines that read like intent:
 
 ```python
-from fldt import Flow
+from fldt import Fluent
 
-(Flow(pipeline_name="pg_to_redshift")
-  .from_sql_database("postgresql://user:pw@host/db")
-  .from_table("public.users", primary_key="id", incremental="updated_at")
-  .from_filesystem("s3://bucket/path/*.csv", table_name="events")
-  .to_database("redshift", credentials="redshift://user:pw@host:5439/db", dataset="raw")
-  .run(write_disposition="merge"))
+Fluent() \
+    .from_s3("s3://raw/data/*.jsonl", table_name="events") \
+    .from_db("postgresql://user:pw@host/db") \
+    .from_table("analytics.users", primary_key="id", incremental="updated_at") \
+    .to("bigquery", dataset="raw")
 ```
 
-### Requirements
-- Fluent API: `.from_*().to_*().run()`
-- DLT native sources: `sql_table`, `sql_query`, `filesystem`
-- Destinations: database (Redshift, BigQuery, etc.) and filesystem (S3/local)
-- Modular architecture: Flow façade + Managers + Plugins
-- Type-safe, testable, easily extensible
+> "Declarative enough for configs.  
+> Explicit enough for Python."
+
+### Core Principles
+
+- **🔄 Fluent** — pipelines read like sentences (`from → to`)
+- **⚡ Minimal** — no boilerplate, no configs, just data flows
+- **🧩 Composable** — chain multiple sources before sending to a destination
+- **🚀 Powered by DLT-Hub** — reliable, scalable pipelines under the hood
+
+---
+
+## 🚀 Quick Start
+
+### Installation
+
+```bash
+pip install fldt
+```
+
+### Examples
+
+#### Example 1: S3 → Redshift
+
+```python
+from fldt import Fluent
+
+Fluent(pipeline_name="s3_to_redshift") \
+    .from_s3("s3://data-lake/raw/events/*.csv", table_name="events") \
+    .to("redshift", credentials="redshift://user:pw@host:5439/db", dataset="analytics")
+```
+
+#### Example 2: Postgres → BigQuery
+
+```python
+from fldt import Fluent
+
+Fluent() \
+    .from_db("postgresql://user:pw@host/db") \
+    .from_table("public.users", primary_key="id", incremental="updated_at") \
+    .to("bigquery", dataset="users_raw", write_disposition="merge")
+```
+
+#### Example 3: Query-based Load
+
+```python
+from fldt import Fluent
+
+Fluent() \
+    .from_db("postgresql://user:pw@host/db") \
+    .from_query(
+        "SELECT * FROM orders WHERE created_at >= now() - interval '1 day'",
+        table_name="recent_orders"
+    ) \
+    .to("s3", dataset="exports")
+```
+
+#### Example 4: Multiple Sources
+
+```python
+from fldt import Fluent
+
+Fluent(pipeline_name="multi_source_pipeline") \
+    .from_s3("s3://bucket/events/*.csv", table_name="events") \
+    .from_db("postgresql://user:pw@host/db") \
+    .from_table("public.users") \
+    .from_query("SELECT * FROM orders WHERE status = 'active'", table_name="active_orders") \
+    .to("bigquery", dataset="analytics")
+```
+
+---
+
+## 🧩 API Overview
+
+### Core Methods
+
+| Method | Description |
+|--------|-------------|
+| `Fluent(pipeline_name=None)` | Initialize a new pipeline builder |
+| `.from_s3(url_glob, table_name=None, file_format=None, ...)` | Load CSV/JSONL/Parquet files from S3 |
+| `.from_db(credentials)` | Set database credentials for subsequent table/query sources |
+| `.from_table(table, primary_key=None, incremental=None, ...)` | Add a database table to extract |
+| `.from_query(query, table_name, ...)` | Add a SQL query-based resource |
+| `.to(destination, credentials=None, dataset="raw", write_disposition="append", ...)` | Execute the pipeline to destination |
+
+### Source Methods
+
+#### `.from_s3(url_glob, table_name=None, file_format=None, **kwargs)`
+
+Load files from S3.
+
+**Parameters:**
+- `url_glob` (str): S3 URL pattern (e.g., `"s3://bucket/data/*.csv"`)
+- `table_name` (str, optional): Table name for the data
+- `file_format` (str, optional): File format (`csv`, `jsonl`, `parquet`) - auto-detected if not provided
+- `**kwargs`: Additional arguments passed to DLT filesystem source
+
+**Returns:** Self for method chaining
+
+---
+
+#### `.from_db(credentials)`
+
+Set database credentials and create a sql_database source context for subsequent table/query operations.
+
+**Parameters:**
+- `credentials` (str): Database connection string (e.g., `"postgresql://user:pw@host/db"`)
+
+**Returns:** Self for method chaining
+
+**Note:** Must be called before `.from_table()` or `.from_query()`
+
+---
+
+#### `.from_table(table, primary_key=None, incremental=None, **kwargs)`
+
+Add a database table resource to the current sql_database source.
+
+**Parameters:**
+- `table` (str): Table name (e.g., `"public.users"` or `"schema.table"`)
+- `primary_key` (str, optional): Primary key column name
+- `incremental` (str, optional): Incremental column name for incremental loads
+- `**kwargs`: Additional arguments
+
+**Returns:** Self for method chaining
+
+**Raises:** `ValueError` if `from_db()` has not been called first
+
+---
+
+#### `.from_query(query, table_name, **kwargs)`
+
+Add a SQL query-based resource to the current sql_database source.
+
+**Parameters:**
+- `query` (str): SQL query to execute
+- `table_name` (str): Name for the resulting table
+- `**kwargs`: Additional arguments
+
+**Returns:** Self for method chaining
+
+**Raises:** `ValueError` if `from_db()` has not been called first
+
+---
+
+### Destination Method
+
+#### `.to(destination, credentials=None, dataset="raw", write_disposition="append", **kwargs)`
+
+Execute the pipeline to the specified destination.
+
+**Parameters:**
+- `destination` (str): Destination type (`bigquery`, `redshift`, `s3`, `postgres`, `duckdb`, etc.)
+- `credentials` (str, optional): Credentials string for the destination
+- `dataset` (str): Dataset/schema name (default: `"raw"`)
+- `write_disposition` (str): Write mode - `"append"`, `"replace"`, or `"merge"` (default: `"append"`)
+- `**kwargs`: Additional destination-specific arguments
+
+**Returns:** Pipeline run result from DLT
+
+**Raises:** `ValueError` if no sources have been specified
 
 ---
 
@@ -35,21 +194,11 @@ fluentdlt/
   LICENSE
   src/
     fldt/
-      __init__.py
-      flow.py
-      state.py
-      util/
-        logging.py
-      managers/
-        __init__.py
-        sources.py
-        destinations.py
-        runner.py
-      destinations/
-        __init__.py
-        base.py
-        database.py
-        filesystem.py
+      __init__.py          # Package exports (Fluent class)
+      fluent.py            # Core Fluent class with method chaining
+      dlt_adapter.py       # DLT-Hub integration layer
+      sources.py           # Source configuration builders
+      destinations.py      # Destination configuration builders
   tests/
     test_smoke.py
   .gitignore
@@ -57,402 +206,167 @@ fluentdlt/
 
 ---
 
-## ⚙️ pyproject.toml
+## ⚙️ Installation & Setup
 
-```toml
-[build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "fluentdlt"
-version = "0.1.0"
-description = "FluentDLT (pkg: fldt): fluent, Pythonic wrapper around dlt-hub for readable ETL flows."
-authors = [{name = "Juan Palomino M."}]
-readme = "README.md"
-requires-python = ">=3.9"
-dependencies = [
-  "dlt>=1.4.0",
-  "typer>=0.12.0",
-  "rich>=13.7",
-  "pandas>=2.2",
-  "fsspec>=2024.6.1",
-  "s3fs>=2024.6.0"
-]
-
-[tool.setuptools.packages.find]
-where = ["src"]
-```
-
----
-
-## 📦 src/fldt/__init__.py
-
-```python
-from .flow import Flow
-__all__ = ["Flow"]
-```
-
----
-
-## 📘 src/fldt/util/logging.py
-
-```python
-import logging
-from rich.logging import RichHandler
-
-def get_logger(name: str = "fldt") -> logging.Logger:
-    logger = logging.getLogger(name)
-    if not logger.handlers:
-        logger.setLevel(logging.INFO)
-        handler = RichHandler(markup=True, rich_tracebacks=True)
-        fmt = logging.Formatter("%(message)s")
-        handler.setFormatter(fmt)
-        logger.addHandler(handler)
-    return logger
-```
-
----
-
-## 🧱 src/fldt/state.py
-
-```python
-from dataclasses import dataclass, field
-from typing import Any, Optional, List
-
-@dataclass
-class DestinationConfig:
-    kind: Optional[str] = None          # "database" | "filesystem"
-    name: Optional[str] = None          # e.g., "redshift"
-    credentials: Optional[str] = None
-    dataset: Optional[str] = None
-    fs_root: Optional[str] = None
-
-@dataclass
-class FlowState:
-    pipeline_name: str
-    dataset: str
-    chunk_size: int
-    db_credentials: Optional[str] = None
-    resources: List[Any] = field(default_factory=list)
-    destination: DestinationConfig = field(default_factory=DestinationConfig)
-```
-
----
-
-## 🧩 src/fldt/managers/sources.py
-
-```python
-from typing import Optional
-import dlt
-from dlt.sources.sql_database import sql_table, sql_query
-from dlt.sources.filesystem import filesystem
-from ..state import FlowState
-
-class SourceManager:
-    def __init__(self, state: FlowState):
-        self.state = state
-
-    def set_db_credentials(self, credentials: str):
-        self.state.db_credentials = credentials
-
-    def add_table(self, *, table: str, schema: Optional[str], primary_key: Optional[str],
-                  incremental: Optional[str], reflection_level: str):
-        if not self.state.db_credentials:
-            raise ValueError("Call from_sql_database(credentials) before from_table().")
-        _table = table.split(".")[-1]
-        _schema = schema or (table.split(".")[0] if "." in table else None)
-        res = sql_table(
-            credentials=self.state.db_credentials,
-            table=_table,
-            schema=_schema,
-            chunk_size=self.state.chunk_size,
-            reflection_level=reflection_level,
-        )
-        if incremental:
-            res.apply_hints(incremental=dlt.sources.incremental(incremental))
-        if primary_key:
-            res.apply_hints(primary_key=primary_key)
-        self.state.resources.append(res)
-
-    def add_query(self, *, query: str, table_name: str, primary_key: Optional[str], reflection_level: str):
-        if not self.state.db_credentials:
-            raise ValueError("Call from_sql_database(credentials) before from_query().")
-        res = sql_query(
-            credentials=self.state.db_credentials,
-            query=query,
-            table_name=table_name,
-            chunk_size=self.state.chunk_size,
-            reflection_level=reflection_level,
-        )
-        if primary_key:
-            res.apply_hints(primary_key=primary_key)
-        self.state.resources.append(res)
-
-    def add_filesystem(self, *, include_glob: str, table_name: Optional[str], format: Optional[str],
-                       base_url: Optional[str], file_filter: Optional[str], file_glob: Optional[str], options: dict):
-        res = filesystem(
-            include=include_glob,
-            table_name=table_name,
-            format=format,
-            base_url=base_url,
-            file_filter=file_filter,
-            file_glob=file_glob,
-            options=options,
-        )
-        self.state.resources.append(res)
-```
-
----
-
-## 📦 src/fldt/managers/destinations.py
-
-```python
-from ..state import FlowState, DestinationConfig
-from ..destinations.database import DatabaseDestination
-from ..destinations.filesystem import FilesystemDestination
-
-class DestinationManager:
-    def __init__(self, state: FlowState):
-        self.state = state
-
-    def set_database(self, *, name: str, credentials: str | None, dataset: str | None):
-        self.state.destination = DestinationConfig(kind="database", name=name,
-                                                   credentials=credentials, dataset=dataset)
-
-    def set_filesystem(self, *, root_url: str, dataset: str | None):
-        self.state.destination = DestinationConfig(kind="filesystem", fs_root=root_url, dataset=dataset)
-
-    def build(self):
-        dest = self.state.destination
-        if dest.kind == "database":
-            return DatabaseDestination()
-        if dest.kind == "filesystem":
-            return FilesystemDestination()
-        raise ValueError("Destination not configured.")
-```
-
----
-
-## 💾 src/fldt/destinations/base.py
-
-```python
-from __future__ import annotations
-from typing import Protocol
-from ..state import FlowState
-
-class DestinationPlugin(Protocol):
-    def prepare_env(self, state: FlowState) -> None: ...
-    def destination_name(self, state: FlowState) -> str: ...
-    def dataset_name(self, state: FlowState) -> str: ...
-```
----
-
-## 🧮 src/fldt/destinations/database.py
-
-```python
-import os
-from ..state import FlowState
-from .base import DestinationPlugin
-
-class DatabaseDestination(DestinationPlugin):
-    def prepare_env(self, state: FlowState) -> None:
-        if state.destination.credentials:
-            os.environ.setdefault("DESTINATION__CREDENTIALS", state.destination.credentials)
-
-    def destination_name(self, state: FlowState) -> str:
-        if not state.destination.name:
-            raise ValueError("Database destination name not set.")
-        return state.destination.name
-
-    def dataset_name(self, state: FlowState) -> str:
-        return state.destination.dataset or state.dataset
-```
----
-
-## 📁 src/fldt/destinations/filesystem.py
-
-```python
-import os
-from ..state import FlowState
-from .base import DestinationPlugin
-
-class FilesystemDestination(DestinationPlugin):
-    def prepare_env(self, state: FlowState) -> None:
-        root = state.destination.fs_root
-        if not root:
-            raise ValueError("Filesystem root_url not provided.")
-        os.environ.setdefault("DESTINATION__FILESYSTEM__BUCKET_URL", root)
-
-    def destination_name(self, state: FlowState) -> str:
-        return "filesystem"
-
-    def dataset_name(self, state: FlowState) -> str:
-        return state.destination.dataset or state.dataset
-```
----
-
-## 🚀 src/fldt/managers/runner.py
-
-```python
-import dlt
-from ..state import FlowState
-from ..destinations.base import DestinationPlugin
-
-class PipelineRunner:
-    def run(self, state: FlowState, plugin: DestinationPlugin, write_disposition: str):
-        if not state.resources:
-            raise ValueError("No sources staged.")
-        plugin.prepare_env(state)
-        pipe = dlt.pipeline(
-            pipeline_name=state.pipeline_name,
-            destination=plugin.destination_name(state),
-            dataset_name=plugin.dataset_name(state),
-            full_refresh=False,
-        )
-        return pipe.run(state.resources, write_disposition=write_disposition)
-```
----
-
-## 🧠 src/fldt/flow.py
-
-```python
-from .state import FlowState
-from .managers.sources import SourceManager
-from .managers.destinations import DestinationManager
-from .managers.runner import PipelineRunner
-
-class Flow:
-    def __init__(self, *, pipeline_name="fluentdlt_pipeline", dataset="raw", chunk_size=50_000):
-        self.state = FlowState(pipeline_name=pipeline_name, dataset=dataset, chunk_size=chunk_size)
-        self.sources = SourceManager(self.state)
-        self.dests = DestinationManager(self.state)
-        self.runner = PipelineRunner()
-
-    # Sources
-    def from_sql_database(self, credentials: str):
-        self.sources.set_db_credentials(credentials)
-        return self
-
-    def from_table(self, table: str, *, primary_key=None, incremental=None, schema=None, reflection_level="full_with_precision"):
-        self.sources.add_table(table=table, schema=schema, primary_key=primary_key,
-                               incremental=incremental, reflection_level=reflection_level)
-        return self
-
-    def from_query(self, query: str, table_name: str, *, primary_key=None, reflection_level="full_with_precision"):
-        self.sources.add_query(query=query, table_name=table_name,
-                               primary_key=primary_key, reflection_level=reflection_level)
-        return self
-
-    def from_filesystem(self, include_glob: str, *, table_name=None, format=None, base_url=None, file_filter=None, file_glob=None, options=None):
-        self.sources.add_filesystem(include_glob=include_glob, table_name=table_name, format=format,
-                                    base_url=base_url, file_filter=file_filter, file_glob=file_glob, options=options or {})
-        return self
-
-    # Destinations
-    def to_database(self, destination: str, *, credentials=None, dataset=None):
-        self.dests.set_database(name=destination, credentials=credentials, dataset=dataset)
-        return self
-
-    def to_filesystem(self, root_url: str, *, dataset=None):
-        self.dests.set_filesystem(root_url=root_url, dataset=dataset)
-        return self
-
-    # Execute
-    def run(self, *, write_disposition="append"):
-        plugin = self.dests.build()
-        return self.runner.run(self.state, plugin, write_disposition=write_disposition)
-```
----
-
-## 🧪 tests/test_smoke.py
-
-```python
-from fldt import Flow
-
-def test_import_and_chaining():
-    f = Flow()
-    assert hasattr(f, "from_sql_database")
-    assert hasattr(f, "to_database")
-```
----
-
-## 🧰 .gitignore
-
-```
-__pycache__/
-*.pyc
-.venv/
-dist/
-build/
-*.egg-info/
-```
-
----
-
-## ✅ Developer Workflow
+### Using uv (recommended)
 
 ```bash
-uv venv && source .venv/bin/activate
-pip install -e .
-pytest -q
+# Install uv if you haven't already
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create virtual environment
+uv venv
+
+# Activate virtual environment
+source .venv/bin/activate  # On Unix/macOS
+# .venv\Scripts\activate   # On Windows
+
+# Install package in development mode
+uv pip install -e .
+```
+
+### Using pip
+
+```bash
+pip install fldt
 ```
 
 ---
 
-## 🚦 Next Tasks (for Cursor)
+## 🎯 Usage Patterns
 
-1. **Typing & Docstrings**: add full type hints and doctrings across all modules.
-2. **CLI**: implement Typer CLI `fldt` with commands: `db-table`, `db-query`, `fs-to-db`.
-3. **Unit tests**: error cases (no destination, table before db, run without sources) and happy paths (mock `dlt.pipeline`).
-4. **YAML fanout**: `fldt run config.yml` compiling to Flow sequences.
-5. **DataFrame source**: `from_dataframe(df, table_name)` using `@dlt.resource`.
+### Pattern 1: Single Source → Destination
 
----
-
-## 🧩 Example Usage
-
-**DB → DB**
 ```python
-from fldt import Flow
+from fldt import Fluent
 
-(Flow(pipeline_name="pg_to_redshift")
-  .from_sql_database("postgresql://user:pw@host/db")
-  .from_table("public.users", primary_key="id", incremental="updated_at")
-  .to_database("redshift", credentials="redshift://user:pw@host:5439/db", dataset="raw")
-  .run(write_disposition="merge"))
+# S3 to BigQuery
+Fluent() \
+    .from_s3("s3://bucket/data/*.parquet", table_name="events") \
+    .to("bigquery", dataset="raw")
 ```
 
-**FS → DB**
+### Pattern 2: Database Context with Multiple Tables
+
 ```python
-(Flow()
-  .from_filesystem("s3://bucket/data/*.csv", table_name="events", format="csv")
-  .to_database("bigquery", dataset="raw")
-  .run())
+from fldt import Fluent
+
+# Multiple tables from same database
+Fluent() \
+    .from_db("postgresql://user:pw@host/db") \
+    .from_table("public.users", incremental="updated_at") \
+    .from_table("public.orders", primary_key="id") \
+    .to("redshift", credentials="redshift://...", dataset="analytics")
 ```
 
-**DB + FS → FS**
+### Pattern 3: Mixed Sources
+
 ```python
-(Flow()
-  .from_sql_database("postgresql://user:pw@host/db")
-  .from_query("SELECT * FROM orders WHERE created_at >= now() - interval '1 day'", table_name="orders")
-  .from_filesystem("/data/logs/*.jsonl", table_name="logs", format="jsonl")
-  .to_filesystem("s3://output-bucket/exports/")
-  .run())
+from fldt import Fluent
+
+# Combine filesystem and database sources
+Fluent(pipeline_name="mixed_sources") \
+    .from_s3("s3://bucket/logs/*.jsonl", table_name="logs") \
+    .from_db("mysql://user:pw@host/db") \
+    .from_query(
+        "SELECT * FROM transactions WHERE date >= CURDATE()",
+        table_name="daily_transactions"
+    ) \
+    .to("bigquery", dataset="warehouse", write_disposition="merge")
 ```
 
 ---
 
-## 🧠 Future Ideas
+## 🔧 Advanced Features
 
-- `FlowConfig` YAML loader (`fldt run config.yml`)
-- Cloud deployment via AWS Lambda
-- Built-in progress reporting (`rich.progress`)
-- Observability hooks / data quality checks
-- Async/streaming variants
+### Incremental Loading
+
+```python
+Fluent() \
+    .from_db("postgresql://...") \
+    .from_table(
+        "events",
+        primary_key="id",
+        incremental="created_at"  # Only load new records
+    ) \
+    .to("bigquery", write_disposition="merge")
+```
+
+### Custom File Formats
+
+```python
+Fluent() \
+    .from_s3(
+        "s3://bucket/data/*.csv",
+        table_name="data",
+        file_format="csv"
+    ) \
+    .to("redshift", dataset="staging")
+```
+
+### Write Dispositions
+
+```python
+# Append (default)
+.to("bigquery", write_disposition="append")
+
+# Replace (truncate and load)
+.to("bigquery", write_disposition="replace")
+
+# Merge (upsert based on primary key)
+.to("bigquery", write_disposition="merge")
+```
 
 ---
 
-**Author:** Juan Palomino M.  
-**License:** Apache-2.0  
-**Version:** 0.1.0
+## 📚 Supported Destinations
+
+FluentDLT supports all DLT destinations:
+
+- **Data Warehouses**: BigQuery, Redshift, Snowflake, Databricks
+- **Databases**: PostgreSQL, DuckDB, MotherDuck
+- **Object Storage**: S3, GCS, Azure Blob Storage
+- **And more**: See [DLT documentation](https://dlthub.com/docs/dlt-ecosystem/destinations)
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run tests
+pytest
+
+# Run with coverage
+pytest --cov=fldt
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+## 📄 License
+
+Licensed under the **Apache License 2.0**
+
+© 2025 Juan Palomino M.
+
+> **Note:** FluentDLT builds upon the [DLT-Hub](https://github.com/dlt-hub/dlt) library (Apache 2.0).
+
+---
+
+## ✨ Credits
+
+Built with ❤️ and powered by:
+
+- **[DLT-Hub](https://github.com/dlt-hub/dlt)** — Data loading made simple
+- **[Pandas](https://pandas.pydata.org/)** — Data manipulation and analysis
+- **[FSSpec](https://filesystem-spec.readthedocs.io/)** — Unified filesystem interface
+- **[Typer](https://typer.tiangolo.com/)** — Modern CLI framework
+
+---
+
+**Made with ❤️ by the FluentDLT team**
