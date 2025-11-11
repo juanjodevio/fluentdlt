@@ -1,7 +1,6 @@
 """Source configuration builders for different data sources."""
 
 from typing import Optional, List, Dict, Any
-import re
 
 
 class SourceBuilder:
@@ -92,7 +91,7 @@ class SourceBuilder:
     @staticmethod
     def build_filesystem_source(
         url_glob: str,
-        table_name: Optional[str] = None,
+        table_name: str,
         file_format: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
@@ -100,7 +99,7 @@ class SourceBuilder:
 
         Args:
             url_glob: S3 URL pattern (e.g., "s3://bucket/data/*.csv")
-            table_name: Optional table name
+            table_name: Table name for the data (required)
             file_format: Optional file format (auto-detected if not provided)
             **kwargs: Additional source arguments
 
@@ -110,10 +109,6 @@ class SourceBuilder:
         # Auto-detect file format from URL if not provided
         if not file_format:
             file_format = SourceBuilder._detect_file_format(url_glob)
-
-        # Extract table name from URL if not provided
-        if not table_name:
-            table_name = SourceBuilder._extract_table_name_from_url(url_glob)
 
         config = {
             "type": "filesystem",
@@ -148,22 +143,4 @@ class SourceBuilder:
             # Default to csv for unknown formats
             return "csv"
 
-    @staticmethod
-    def _extract_table_name_from_url(url: str) -> str:
-        """Extract a table name from a URL.
-
-        Args:
-            url: File URL
-
-        Returns:
-            Extracted table name
-        """
-        # Extract filename from URL
-        match = re.search(r"([^/]+)(?:\.\w+)?$", url)
-        if match:
-            filename = match.group(1)
-            # Remove common prefixes and clean up
-            filename = filename.replace("*", "").replace(".", "_")
-            return filename if filename else "data"
-        return "data"
 

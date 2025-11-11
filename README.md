@@ -100,7 +100,7 @@ Fluent(pipeline_name="multi_source_pipeline") \
 | Method | Description |
 |--------|-------------|
 | `Fluent(pipeline_name=None)` | Initialize a new pipeline builder |
-| `.from_s3(url_glob, table_name=None, file_format=None, ...)` | Load CSV/JSONL/Parquet files from S3 |
+| `.from_s3(url_glob, table_name, file_format=None, ...)` | Load CSV/JSONL/Parquet files from S3 |
 | `.from_db(credentials)` | Set database credentials for subsequent table/query sources |
 | `.from_table(table, primary_key=None, incremental=None, ...)` | Add a database table to extract |
 | `.from_query(query, table_name, ...)` | Add a SQL query-based resource |
@@ -108,17 +108,19 @@ Fluent(pipeline_name="multi_source_pipeline") \
 
 ### Source Methods
 
-#### `.from_s3(url_glob, table_name=None, file_format=None, **kwargs)`
+#### `.from_s3(url_glob, table_name, file_format=None, **kwargs)`
 
 Load files from S3.
 
 **Parameters:**
 - `url_glob` (str): S3 URL pattern (e.g., `"s3://bucket/data/*.csv"`)
-- `table_name` (str, optional): Table name for the data
+- `table_name` (str, **required**): Table name for the data
 - `file_format` (str, optional): File format (`csv`, `jsonl`, `parquet`) - auto-detected if not provided
 - `**kwargs`: Additional arguments passed to DLT filesystem source
 
 **Returns:** Self for method chaining
+
+**Note:** `table_name` must always be explicitly provided. This ensures clear, unambiguous table naming in your data warehouse.
 
 ---
 

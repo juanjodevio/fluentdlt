@@ -24,7 +24,7 @@ class Fluent:
     def from_s3(
         self,
         url_glob: str,
-        table_name: Optional[str] = None,
+        table_name: str,
         file_format: Optional[str] = None,
         **kwargs
     ) -> "Fluent":
@@ -32,7 +32,7 @@ class Fluent:
 
         Args:
             url_glob: S3 URL pattern (e.g., "s3://bucket/data/*.csv")
-            table_name: Optional table name for the data
+            table_name: Table name for the data (required)
             file_format: Optional file format (csv, jsonl, parquet, etc.)
             **kwargs: Additional arguments passed to the source
 
