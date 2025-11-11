@@ -9,13 +9,14 @@ class SourceBuilder:
     @staticmethod
     def build_sql_database_source(
         credentials: str,
-        resources: Optional[List[Dict[str, Any]]] = None
+        tables: Optional[List[str]] = None,
+        **kwargs
     ) -> Dict[str, Any]:
         """Build configuration for a DLT sql_database source.
 
         Args:
             credentials: Database connection string
-            resources: Optional list of resource configurations
+            tables: Optional list of specific table names to extract
 
         Returns:
             Source configuration dictionary
@@ -23,70 +24,73 @@ class SourceBuilder:
         config = {
             "type": "sql_database",
             "credentials": credentials,
-            "resources": resources or []
+            "tables": tables,
+            **kwargs
         }
         return config
 
     @staticmethod
-    def add_table_resource(
-        source: Dict[str, Any],
+    def build_table_source(
+        credentials: str,
         table: str,
         primary_key: Optional[str] = None,
         incremental: Optional[str] = None,
         **kwargs
-    ) -> None:
-        """Add a table resource to a sql_database source.
+    ) -> Dict[str, Any]:
+        """Build configuration for a single database table source.
 
         Args:
-            source: Source configuration dictionary (modified in place)
+            credentials: Database connection string
             table: Table name (schema.table format)
             primary_key: Optional primary key column
             incremental: Optional incremental column for incremental loads
-            **kwargs: Additional resource arguments
-        """
-        if source.get("type") != "sql_database":
-            raise ValueError("source must be a sql_database source")
+            **kwargs: Additional source arguments
 
-        resource = {
+        Returns:
+            Source configuration dictionary
+        """
+        config = {
             "type": "table",
-            "name": table,
+            "credentials": credentials,
+            "table": table,
             **kwargs
         }
 
         if primary_key:
-            resource["primary_key"] = primary_key
+            config["primary_key"] = primary_key
 
         if incremental:
-            resource["incremental"] = incremental
+            config["incremental"] = incremental
 
-        source.setdefault("resources", []).append(resource)
+        return config
 
     @staticmethod
-    def add_query_resource(
-        source: Dict[str, Any],
+    def build_query_source(
+        credentials: str,
         query: str,
         table_name: str,
         **kwargs
-    ) -> None:
-        """Add a query resource to a sql_database source.
+    ) -> Dict[str, Any]:
+        """Build configuration for a query-based source.
 
         Args:
-            source: Source configuration dictionary (modified in place)
+            credentials: Database connection string
             query: SQL query to execute
             table_name: Name for the resulting table
-            **kwargs: Additional resource arguments
-        """
-        if source.get("type") != "sql_database":
-            raise ValueError("source must be a sql_database source")
+            **kwargs: Additional source arguments
 
-        resource = {
+        Returns:
+            Source configuration dictionary
+        """
+        config = {
             "type": "query",
-            "name": table_name,
+            "credentials": credentials,
             "query": query,
+            "table_name": table_name,
             **kwargs
         }
 
-        source.setdefault("resources", []).append(resource)
+        return config
 
     @staticmethod
     def build_filesystem_source(

@@ -3,7 +3,7 @@
 **Fluent Data Loading Toolkit** — Write ETL pipelines that read like English
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
 ---
 
@@ -14,10 +14,14 @@
 ```python
 from fldt import Fluent
 
+# Each Fluent instance handles one source
 Fluent() \
     .from_s3("s3://raw/data/*.jsonl", table_name="events") \
-    .from_db("postgresql://user:pw@host/db") \
-    .from_table("analytics.users", primary_key="id", incremental="updated_at") \
+    .to("bigquery", dataset="raw")
+
+Fluent() \
+    .from_table("postgresql://user:pw@host/db", "analytics.users", 
+                primary_key="id", incremental="updated_at") \
     .to("bigquery", dataset="raw")
 ```
 
@@ -53,66 +57,69 @@ Fluent(pipeline_name="s3_to_redshift") \
     .to("redshift", credentials="redshift://user:pw@host:5439/db", dataset="analytics")
 ```
 
-#### Example 2: Postgres → BigQuery
+#### Example 2: Postgres Table → BigQuery
 
 ```python
 from fldt import Fluent
 
 Fluent() \
-    .from_db("postgresql://user:pw@host/db") \
-    .from_table("public.users", primary_key="id", incremental="updated_at") \
+    .from_table("postgresql://user:pw@host/db", "public.users", 
+                primary_key="id", incremental="updated_at") \
     .to("bigquery", dataset="users_raw", write_disposition="merge")
 ```
 
-#### Example 3: Query-based Load
+#### Example 3: SQL Query → S3
 
 ```python
 from fldt import Fluent
 
 Fluent() \
-    .from_db("postgresql://user:pw@host/db") \
     .from_query(
+        "postgresql://user:pw@host/db",
         "SELECT * FROM orders WHERE created_at >= now() - interval '1 day'",
         table_name="recent_orders"
     ) \
     .to("s3", dataset="exports")
 ```
 
-#### Example 4: Multiple Sources
+#### Example 4: Full Database → BigQuery
 
 ```python
 from fldt import Fluent
 
-Fluent(pipeline_name="multi_source_pipeline") \
-    .from_s3("s3://bucket/events/*.csv", table_name="events") \
-    .from_db("postgresql://user:pw@host/db") \
-    .from_table("public.users") \
-    .from_query("SELECT * FROM orders WHERE status = 'active'", table_name="active_orders") \
+# Load entire database (all tables)
+Fluent(pipeline_name="full_db_sync") \
+    .from_sql_database("postgresql://user:pw@host/db") \
+    .to("bigquery", dataset="analytics")
+
+# Or load specific tables only
+Fluent() \
+    .from_sql_database("postgresql://user:pw@host/db", 
+                       tables=["public.users", "public.orders"]) \
     .to("bigquery", dataset="analytics")
 ```
 
-#### Example 5: DuckDB → DuckDB
+#### Example 5: DuckDB Table → BigQuery
 
 ```python
 from fldt import Fluent
 
-# Load from DuckDB source to DuckDB destination
+# Load a single table from DuckDB
 Fluent() \
-    .from_db("duckdb:///path/to/source.db") \
-    .from_table("events", primary_key="id", incremental="timestamp") \
-    .to("duckdb", credentials="duckdb:///path/to/dest.db", dataset="analytics")
+    .from_table("duckdb:///path/to/source.db", "events", 
+                primary_key="id", incremental="timestamp") \
+    .to("bigquery", dataset="analytics")
 ```
 
-#### Example 6: Postgres → DuckDB (for local analytics)
+#### Example 6: Postgres Table → DuckDB
 
 ```python
 from fldt import Fluent
 
-# Extract from production Postgres to local DuckDB for analysis
+# Extract single table from Postgres to local DuckDB
 Fluent(pipeline_name="pg_to_local_duckdb") \
-    .from_db("postgresql://user:pw@prod-host/db") \
-    .from_table("public.users") \
-    .from_table("public.orders") \
+    .from_table("postgresql://user:pw@prod-host/db", "public.orders",
+                incremental="created_at") \
     .to("duckdb", credentials="duckdb:///data/analytics.db", dataset="raw")
 ```
 
@@ -124,11 +131,11 @@ Fluent(pipeline_name="pg_to_local_duckdb") \
 
 | Method | Description |
 |--------|-------------|
-| `Fluent(pipeline_name=None)` | Initialize a new pipeline builder |
+| `Fluent(pipeline_name=None)` | Initialize a new pipeline builder (one source per instance) |
 | `.from_s3(url_glob, table_name, file_format=None, ...)` | Load CSV/JSONL/Parquet files from S3 |
-| `.from_db(credentials)` | Set database credentials for subsequent table/query sources |
-| `.from_table(table, primary_key=None, incremental=None, ...)` | Add a database table to extract |
-| `.from_query(query, table_name, ...)` | Add a SQL query-based resource |
+| `.from_sql_database(credentials, tables=None, ...)` | Load entire database or specific tables |
+| `.from_table(credentials, table, primary_key=None, incremental=None, ...)` | Load a single database table |
+| `.from_query(credentials, query, table_name, ...)` | Load from a SQL query |
 | `.to(destination, credentials=None, dataset="raw", write_disposition="append", ...)` | Execute the pipeline to destination |
 
 ### Source Methods
@@ -149,24 +156,27 @@ Load files from S3.
 
 ---
 
-#### `.from_db(credentials)`
+#### `.from_sql_database(credentials, tables=None, **kwargs)`
 
-Set database credentials and create a sql_database source context for subsequent table/query operations.
+Load entire database or specific tables.
 
 **Parameters:**
-- `credentials` (str): Database connection string (e.g., `"postgresql://user:pw@host/db"`)
+- `credentials` (str): Database connection string (e.g., `"postgresql://user:pw@host/db"`, `"duckdb:///data.db"`)
+- `tables` (List[str], optional): Specific table names to extract. If None, extracts all tables.
+- `**kwargs`: Additional arguments
 
 **Returns:** Self for method chaining
 
-**Note:** Must be called before `.from_table()` or `.from_query()`
+**Raises:** `ValueError` if a source has already been set
 
 ---
 
-#### `.from_table(table, primary_key=None, incremental=None, **kwargs)`
+#### `.from_table(credentials, table, primary_key=None, incremental=None, **kwargs)`
 
-Add a database table resource to the current sql_database source.
+Load a single database table.
 
 **Parameters:**
+- `credentials` (str): Database connection string (e.g., `"postgresql://user:pw@host/db"`, `"duckdb:///data.db"`)
 - `table` (str): Table name (e.g., `"public.users"` or `"schema.table"`)
 - `primary_key` (str, optional): Primary key column name
 - `incremental` (str, optional): Incremental column name for incremental loads
@@ -174,22 +184,23 @@ Add a database table resource to the current sql_database source.
 
 **Returns:** Self for method chaining
 
-**Raises:** `ValueError` if `from_db()` has not been called first
+**Raises:** `ValueError` if a source has already been set
 
 ---
 
-#### `.from_query(query, table_name, **kwargs)`
+#### `.from_query(credentials, query, table_name, **kwargs)`
 
-Add a SQL query-based resource to the current sql_database source.
+Load from a SQL query.
 
 **Parameters:**
+- `credentials` (str): Database connection string (e.g., `"postgresql://user:pw@host/db"`, `"duckdb:///data.db"`)
 - `query` (str): SQL query to execute
 - `table_name` (str): Name for the resulting table
 - `**kwargs`: Additional arguments
 
 **Returns:** Self for method chaining
 
-**Raises:** `ValueError` if `from_db()` has not been called first
+**Raises:** `ValueError` if a source has already been set
 
 ---
 
@@ -273,29 +284,38 @@ Fluent() \
     .to("bigquery", dataset="raw")
 ```
 
-### Pattern 2: Database Context with Multiple Tables
+### Pattern 2: Multiple Tables from Database
 
 ```python
 from fldt import Fluent
 
-# Multiple tables from same database
+# Option 1: Load specific tables
 Fluent() \
-    .from_db("postgresql://user:pw@host/db") \
-    .from_table("public.users", incremental="updated_at") \
-    .from_table("public.orders", primary_key="id") \
+    .from_sql_database("postgresql://user:pw@host/db",
+                       tables=["public.users", "public.orders"]) \
+    .to("redshift", credentials="redshift://...", dataset="analytics")
+
+# Option 2: Each table in separate pipeline (for different processing)
+Fluent() \
+    .from_table("postgresql://user:pw@host/db", "public.users",
+                incremental="updated_at") \
+    .to("redshift", credentials="redshift://...", dataset="analytics")
+
+Fluent() \
+    .from_table("postgresql://user:pw@host/db", "public.orders",
+                primary_key="id") \
     .to("redshift", credentials="redshift://...", dataset="analytics")
 ```
 
-### Pattern 3: Mixed Sources
+### Pattern 3: Query-Based Extraction
 
 ```python
 from fldt import Fluent
 
-# Combine filesystem and database sources
-Fluent(pipeline_name="mixed_sources") \
-    .from_s3("s3://bucket/logs/*.jsonl", table_name="logs") \
-    .from_db("mysql://user:pw@host/db") \
+# Extract using custom SQL query
+Fluent(pipeline_name="daily_transactions") \
     .from_query(
+        "mysql://user:pw@host/db",
         "SELECT * FROM transactions WHERE date >= CURDATE()",
         table_name="daily_transactions"
     ) \
@@ -307,11 +327,15 @@ Fluent(pipeline_name="mixed_sources") \
 ```python
 from fldt import Fluent
 
-# Extract from Postgres to local DuckDB for fast analytics
+# Extract single table from Postgres to local DuckDB for fast analytics
 Fluent() \
-    .from_db("postgresql://user:pw@host/db") \
-    .from_table("orders", incremental="created_at") \
-    .from_table("customers") \
+    .from_table("postgresql://user:pw@host/db", "orders",
+                incremental="created_at") \
+    .to("duckdb", credentials="duckdb:///data/analytics.db", dataset="staging")
+
+# Or extract entire database
+Fluent() \
+    .from_sql_database("postgresql://user:pw@host/db") \
     .to("duckdb", credentials="duckdb:///data/analytics.db", dataset="staging")
 ```
 
@@ -323,8 +347,8 @@ Fluent() \
 
 ```python
 Fluent() \
-    .from_db("postgresql://...") \
     .from_table(
+        "postgresql://...",
         "events",
         primary_key="id",
         incremental="created_at"  # Only load new records
@@ -374,17 +398,21 @@ DuckDB is fully supported as both a source and destination:
 
 **As a Source:**
 ```python
+# Single table
 Fluent() \
-    .from_db("duckdb:///path/to/source.db") \
-    .from_table("table_name") \
+    .from_table("duckdb:///path/to/source.db", "table_name") \
+    .to("bigquery", dataset="raw")
+
+# Full database
+Fluent() \
+    .from_sql_database("duckdb:///path/to/source.db") \
     .to("bigquery", dataset="raw")
 ```
 
 **As a Destination:**
 ```python
 Fluent() \
-    .from_db("postgresql://...") \
-    .from_table("events") \
+    .from_table("postgresql://...", "events") \
     .to("duckdb", credentials="duckdb:///data/warehouse.db", dataset="analytics")
 ```
 

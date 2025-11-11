@@ -17,8 +17,7 @@ class Fluent:
                           a default name will be generated.
         """
         self.pipeline_name = pipeline_name or "fluent_pipeline"
-        self.sources: List[Dict[str, Any]] = []
-        self._current_db_source: Optional[Dict[str, Any]] = None
+        self.source: Optional[Dict[str, Any]] = None
         self.dlt_adapter = DLTAdapter()
 
     def from_s3(
@@ -38,48 +37,64 @@ class Fluent:
 
         Returns:
             Self for method chaining
+
+        Raises:
+            ValueError: If a source has already been set
         """
-        source_config = SourceBuilder.build_filesystem_source(
+        if self.source is not None:
+            raise ValueError("Only one source per Fluent instance is allowed")
+
+        self.source = SourceBuilder.build_filesystem_source(
             url_glob=url_glob,
             table_name=table_name,
             file_format=file_format,
             **kwargs
         )
-        self.sources.append(source_config)
         return self
 
-    def from_db(self, credentials: str) -> "Fluent":
-        """Set database credentials and create a sql_database source.
-
-        This sets up the context for subsequent from_table() and from_query() calls.
+    def from_sql_database(
+        self,
+        credentials: str,
+        tables: Optional[List[str]] = None,
+        **kwargs
+    ) -> "Fluent":
+        """Load from a SQL database (all tables or specific tables).
 
         Args:
             credentials: Database connection string
-                       (e.g., "postgresql://user:pw@host/db")
+                       (e.g., "postgresql://user:pw@host/db", "duckdb:///path/to/db")
+            tables: Optional list of specific table names to extract
+            **kwargs: Additional arguments passed to the source
 
         Returns:
             Self for method chaining
+
+        Raises:
+            ValueError: If a source has already been set
         """
-        # Create a new database source
-        self._current_db_source = SourceBuilder.build_sql_database_source(
-            credentials=credentials
+        if self.source is not None:
+            raise ValueError("Only one source per Fluent instance is allowed")
+
+        self.source = SourceBuilder.build_sql_database_source(
+            credentials=credentials,
+            tables=tables,
+            **kwargs
         )
-        # Add it to sources list
-        self.sources.append(self._current_db_source)
         return self
 
     def from_table(
         self,
+        credentials: str,
         table: str,
         primary_key: Optional[str] = None,
         incremental: Optional[str] = None,
         **kwargs
     ) -> "Fluent":
-        """Add a database table resource to the current sql_database source.
-
-        Must be called after from_db().
+        """Load a single database table.
 
         Args:
+            credentials: Database connection string
+                       (e.g., "postgresql://user:pw@host/db", "duckdb:///path/to/db")
             table: Table name (e.g., "public.users" or "schema.table")
             primary_key: Optional primary key column name
             incremental: Optional incremental column name for incremental loads
@@ -89,16 +104,13 @@ class Fluent:
             Self for method chaining
 
         Raises:
-            ValueError: If from_db() has not been called first
+            ValueError: If a source has already been set
         """
-        if not self._current_db_source:
-            raise ValueError(
-                "Database credentials must be set using from_db() before from_table()"
-            )
+        if self.source is not None:
+            raise ValueError("Only one source per Fluent instance is allowed")
 
-        # Add table resource to the current database source
-        SourceBuilder.add_table_resource(
-            source=self._current_db_source,
+        self.source = SourceBuilder.build_table_source(
+            credentials=credentials,
             table=table,
             primary_key=primary_key,
             incremental=incremental,
@@ -108,15 +120,16 @@ class Fluent:
 
     def from_query(
         self,
+        credentials: str,
         query: str,
         table_name: str,
         **kwargs
     ) -> "Fluent":
-        """Add a query-based resource to the current sql_database source.
-
-        Must be called after from_db().
+        """Load from a SQL query.
 
         Args:
+            credentials: Database connection string
+                       (e.g., "postgresql://user:pw@host/db", "duckdb:///path/to/db")
             query: SQL query to execute
             table_name: Name for the resulting table
             **kwargs: Additional arguments passed to the source
@@ -125,16 +138,13 @@ class Fluent:
             Self for method chaining
 
         Raises:
-            ValueError: If from_db() has not been called first
+            ValueError: If a source has already been set
         """
-        if not self._current_db_source:
-            raise ValueError(
-                "Database credentials must be set using from_db() before from_query()"
-            )
+        if self.source is not None:
+            raise ValueError("Only one source per Fluent instance is allowed")
 
-        # Add query resource to the current database source
-        SourceBuilder.add_query_resource(
-            source=self._current_db_source,
+        self.source = SourceBuilder.build_query_source(
+            credentials=credentials,
             query=query,
             table_name=table_name,
             **kwargs
@@ -164,8 +174,8 @@ class Fluent:
         Raises:
             ValueError: If no sources have been specified
         """
-        if not self.sources:
-            raise ValueError("At least one source must be specified before calling to()")
+        if self.source is None:
+            raise ValueError("A source must be specified before calling to()")
 
         destination_config = DestinationBuilder.build_destination(
             destination=destination,
@@ -177,7 +187,7 @@ class Fluent:
 
         return self.dlt_adapter.run_pipeline(
             pipeline_name=self.pipeline_name,
-            sources=self.sources,
+            source=self.source,
             destination=destination_config
         )
 
