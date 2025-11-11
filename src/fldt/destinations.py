@@ -45,6 +45,8 @@ class DestinationBuilder:
             config.update(DestinationBuilder._build_redshift_config(**kwargs))
         elif destination_lower == "s3":
             config.update(DestinationBuilder._build_s3_config(**kwargs))
+        elif destination_lower == "duckdb":
+            config.update(DestinationBuilder._build_duckdb_config(**kwargs))
 
         return config
 
@@ -97,5 +99,20 @@ class DestinationBuilder:
             config["bucket"] = kwargs["bucket"]
         if "path" in kwargs:
             config["path"] = kwargs["path"]
+        return config
+
+    @staticmethod
+    def _build_duckdb_config(**kwargs) -> Dict[str, Any]:
+        """Build DuckDB-specific configuration.
+
+        Args:
+            **kwargs: Additional arguments
+
+        Returns:
+            DuckDB configuration dictionary
+        """
+        config = {}
+        if "db_path" in kwargs:
+            config["db_path"] = kwargs["db_path"]
         return config
 

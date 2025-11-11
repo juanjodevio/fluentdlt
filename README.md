@@ -91,6 +91,31 @@ Fluent(pipeline_name="multi_source_pipeline") \
     .to("bigquery", dataset="analytics")
 ```
 
+#### Example 5: DuckDB → DuckDB
+
+```python
+from fldt import Fluent
+
+# Load from DuckDB source to DuckDB destination
+Fluent() \
+    .from_db("duckdb:///path/to/source.db") \
+    .from_table("events", primary_key="id", incremental="timestamp") \
+    .to("duckdb", credentials="duckdb:///path/to/dest.db", dataset="analytics")
+```
+
+#### Example 6: Postgres → DuckDB (for local analytics)
+
+```python
+from fldt import Fluent
+
+# Extract from production Postgres to local DuckDB for analysis
+Fluent(pipeline_name="pg_to_local_duckdb") \
+    .from_db("postgresql://user:pw@prod-host/db") \
+    .from_table("public.users") \
+    .from_table("public.orders") \
+    .to("duckdb", credentials="duckdb:///data/analytics.db", dataset="raw")
+```
+
 ---
 
 ## 🧩 API Overview
@@ -277,6 +302,19 @@ Fluent(pipeline_name="mixed_sources") \
     .to("bigquery", dataset="warehouse", write_disposition="merge")
 ```
 
+### Pattern 4: DuckDB for Local Analytics
+
+```python
+from fldt import Fluent
+
+# Extract from Postgres to local DuckDB for fast analytics
+Fluent() \
+    .from_db("postgresql://user:pw@host/db") \
+    .from_table("orders", incremental="created_at") \
+    .from_table("customers") \
+    .to("duckdb", credentials="duckdb:///data/analytics.db", dataset="staging")
+```
+
 ---
 
 ## 🔧 Advanced Features
@@ -326,9 +364,44 @@ Fluent() \
 FluentDLT supports all DLT destinations:
 
 - **Data Warehouses**: BigQuery, Redshift, Snowflake, Databricks
-- **Databases**: PostgreSQL, DuckDB, MotherDuck
+- **Databases**: PostgreSQL, DuckDB, MotherDuck, MySQL
 - **Object Storage**: S3, GCS, Azure Blob Storage
 - **And more**: See [DLT documentation](https://dlthub.com/docs/dlt-ecosystem/destinations)
+
+### DuckDB Support
+
+DuckDB is fully supported as both a source and destination:
+
+**As a Source:**
+```python
+Fluent() \
+    .from_db("duckdb:///path/to/source.db") \
+    .from_table("table_name") \
+    .to("bigquery", dataset="raw")
+```
+
+**As a Destination:**
+```python
+Fluent() \
+    .from_db("postgresql://...") \
+    .from_table("events") \
+    .to("duckdb", credentials="duckdb:///data/warehouse.db", dataset="analytics")
+```
+
+**DuckDB In-Memory:**
+```python
+# Use in-memory DuckDB (no file)
+Fluent() \
+    .from_s3("s3://bucket/*.csv", table_name="data") \
+    .to("duckdb", credentials="duckdb:///:memory:", dataset="temp")
+```
+
+**Installation with DuckDB:**
+```bash
+pip install fldt[duckdb]
+# or
+uv pip install fldt[duckdb]
+```
 
 ---
 
