@@ -11,6 +11,7 @@ from fldt.exceptions import (
     ValidationError,
 )
 from fldt.executor import PipelineExecutor
+from fldt.fluent import FluentPipeline
 from fldt.transformers import TransformerChain
 from fldt.types import (
     ConnectionType,
@@ -24,6 +25,8 @@ from fldt.types import (
 __version__ = "0.1.0"
 
 __all__ = [
+    # Main API
+    "FluentPipeline",
     # Exceptions
     "FluentDLTError",
     "ValidationError",
