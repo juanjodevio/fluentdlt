@@ -9,31 +9,27 @@
 
 ## 🧠 Philosophy
 
-**FluentDLT** bridges readability and performance. Instead of YAML or heavy orchestration, you write pipelines that read like intent:
+**FluentDLT** (`fldt`) is a fluent interface wrapper for [dlt (data load tool)](https://dlthub.com) that makes building data pipelines intuitive and readable. Write pipelines that read like English, with full type safety and comprehensive error handling.
 
 ```python
-from fldt import Fluent
+from fldt import FluentPipeline
 
-# Each Fluent instance handles one source
-Fluent() \
-    .from_s3("s3://raw/data/*.jsonl", table_name="events") \
-    .to("bigquery", dataset="raw")
-
-Fluent() \
-    .from_table("postgresql://user:pw@host/db", "analytics.users", 
-                primary_key="id", incremental="updated_at") \
-    .to("bigquery", dataset="raw")
+# Load from SQL, transform, and send to data warehouse
+result = (FluentPipeline
+    .from_sql_table("postgresql://user:pass@localhost/db", "users")
+    .add_transformer(clean_data)
+    .with_incremental("updated_at")
+    .to("duckdb")
+    .run())
 ```
-
-> "Declarative enough for configs.  
-> Explicit enough for Python."
 
 ### Core Principles
 
-- **🔄 Fluent** — pipelines read like sentences (`from → to`)
-- **⚡ Minimal** — no boilerplate, no configs, just data flows
-- **🧩 Composable** — chain multiple sources before sending to a destination
-- **🚀 Powered by DLT-Hub** — reliable, scalable pipelines under the hood
+- **🔄 Fluent** — Pipelines read like sentences with method chaining
+- **⚡ Simple** — Minimal boilerplate, maximum clarity
+- **🛡️ Type-Safe** — Full type hints and validation
+- **🎯 Explicit** — No magic, clear error messages
+- **🚀 Powered by DLT** — Reliable, scalable pipelines under the hood
 
 ---
 
@@ -42,412 +38,441 @@ Fluent() \
 ### Installation
 
 ```bash
+# Basic installation
 pip install fldt
+
+# With SQL database support
+pip install 'fldt[sql_database]'
+
+# With DuckDB destination
+pip install 'fldt[duckdb]'
 ```
 
-### Examples
-
-#### Example 1: S3 → Redshift
+### Basic Example
 
 ```python
-from fldt import Fluent
+from fldt import FluentPipeline
 
-Fluent(pipeline_name="s3_to_redshift") \
-    .from_s3("s3://data-lake/raw/events/*.csv", table_name="events") \
-    .to("redshift", credentials="redshift://user:pw@host:5439/db", dataset="analytics")
-```
+# Simple pipeline from raw data to DuckDB
+data = [
+    {"id": 1, "name": "Alice", "score": 95},
+    {"id": 2, "name": "Bob", "score": 87},
+]
 
-#### Example 2: Postgres Table → BigQuery
-
-```python
-from fldt import Fluent
-
-Fluent() \
-    .from_table("postgresql://user:pw@host/db", "public.users", 
-                primary_key="id", incremental="updated_at") \
-    .to("bigquery", dataset="users_raw", write_disposition="merge")
-```
-
-#### Example 3: SQL Query → S3
-
-```python
-from fldt import Fluent
-
-Fluent() \
-    .from_query(
-        "postgresql://user:pw@host/db",
-        "SELECT * FROM orders WHERE created_at >= now() - interval '1 day'",
-        table_name="recent_orders"
-    ) \
-    .to("s3", dataset="exports")
-```
-
-#### Example 4: Full Database → BigQuery
-
-```python
-from fldt import Fluent
-
-# Load entire database (all tables)
-Fluent(pipeline_name="full_db_sync") \
-    .from_sql_database("postgresql://user:pw@host/db") \
-    .to("bigquery", dataset="analytics")
-
-# Or load specific tables only
-Fluent() \
-    .from_sql_database("postgresql://user:pw@host/db", 
-                       tables=["public.users", "public.orders"]) \
-    .to("bigquery", dataset="analytics")
-```
-
-#### Example 5: DuckDB Table → BigQuery
-
-```python
-from fldt import Fluent
-
-# Load a single table from DuckDB
-Fluent() \
-    .from_table("duckdb:///path/to/source.db", "events", 
-                primary_key="id", incremental="timestamp") \
-    .to("bigquery", dataset="analytics")
-```
-
-#### Example 6: Postgres Table → DuckDB
-
-```python
-from fldt import Fluent
-
-# Extract single table from Postgres to local DuckDB
-Fluent(pipeline_name="pg_to_local_duckdb") \
-    .from_table("postgresql://user:pw@prod-host/db", "public.orders",
-                incremental="created_at") \
-    .to("duckdb", credentials="duckdb:///data/analytics.db", dataset="raw")
+result = (FluentPipeline
+    .from_source(data)
+    .to("duckdb")
+    .with_dataset("analytics")
+    .run())
 ```
 
 ---
 
-## 🧩 API Overview
+## 📖 API Reference
 
-### Core Methods
+### Factory Methods
 
-| Method | Description |
-|--------|-------------|
-| `Fluent(pipeline_name=None)` | Initialize a new pipeline builder (one source per instance) |
-| `.from_s3(url_glob, table_name, file_format=None, ...)` | Load CSV/JSONL/Parquet files from S3 |
-| `.from_sql_database(credentials, tables=None, ...)` | Load entire database or specific tables |
-| `.from_table(credentials, table, primary_key=None, incremental=None, ...)` | Load a single database table |
-| `.from_query(credentials, query, table_name, ...)` | Load from a SQL query |
-| `.to(destination, credentials=None, dataset="raw", write_disposition="append", ...)` | Execute the pipeline to destination |
+Create pipelines from various sources:
 
-### Source Methods
+#### `FluentPipeline.from_source(source)`
 
-#### `.from_s3(url_glob, table_name, file_format=None, **kwargs)`
+Create pipeline from any dlt-compatible source (dlt sources, callables, iterables, raw data).
 
-Load files from S3.
+```python
+# From raw data
+FluentPipeline.from_source([{"id": 1}, {"id": 2}])
+
+# From callable
+FluentPipeline.from_source(lambda: fetch_data())
+
+# From dlt source
+FluentPipeline.from_source(my_dlt_source())
+```
+
+#### `FluentPipeline.from_sql_table(connection, table, schema=None, **kwargs)`
+
+Load a single SQL table using SQLAlchemy connection.
 
 **Parameters:**
-- `url_glob` (str): S3 URL pattern (e.g., `"s3://bucket/data/*.csv"`)
-- `table_name` (str, **required**): Table name for the data
-- `file_format` (str, optional): File format (`csv`, `jsonl`, `parquet`) - auto-detected if not provided
-- `**kwargs`: Additional arguments passed to DLT filesystem source
+- `connection`: SQLAlchemy Engine or connection string
+- `table`: Table name to load
+- `schema`: Optional schema name
+- `**kwargs`: Additional dlt sql_table arguments
 
-**Returns:** Self for method chaining
+```python
+FluentPipeline.from_sql_table(
+    "postgresql://user:pass@localhost/db",
+    "users",
+    schema="public"
+)
+```
 
-**Note:** `table_name` must always be explicitly provided. This ensures clear, unambiguous table naming in your data warehouse.
+#### `FluentPipeline.from_sql_query(connection, query, **kwargs)`
 
----
-
-#### `.from_sql_database(credentials, tables=None, **kwargs)`
-
-Load entire database or specific tables.
+Load data from a custom SQL query.
 
 **Parameters:**
-- `credentials` (str): Database connection string (e.g., `"postgresql://user:pw@host/db"`, `"duckdb:///data.db"`)
-- `tables` (List[str], optional): Specific table names to extract. If None, extracts all tables.
-- `**kwargs`: Additional arguments
+- `connection`: SQLAlchemy Engine or connection string
+- `query`: SQL query to execute
+- `**kwargs`: Additional dlt sql_database arguments
 
-**Returns:** Self for method chaining
+```python
+FluentPipeline.from_sql_query(
+    "postgresql://user:pass@localhost/db",
+    "SELECT * FROM users WHERE active = true"
+)
+```
 
-**Raises:** `ValueError` if a source has already been set
+#### `FluentPipeline.from_sql_database(connection, schema=None, **kwargs)`
 
----
-
-#### `.from_table(credentials, table, primary_key=None, incremental=None, **kwargs)`
-
-Load a single database table.
+Load entire SQL database (all tables).
 
 **Parameters:**
-- `credentials` (str): Database connection string (e.g., `"postgresql://user:pw@host/db"`, `"duckdb:///data.db"`)
-- `table` (str): Table name (e.g., `"public.users"` or `"schema.table"`)
-- `primary_key` (str, optional): Primary key column name
-- `incremental` (str, optional): Incremental column name for incremental loads
-- `**kwargs`: Additional arguments
+- `connection`: SQLAlchemy Engine or connection string
+- `schema`: Optional schema name
+- `**kwargs`: Additional dlt sql_database arguments
 
-**Returns:** Self for method chaining
-
-**Raises:** `ValueError` if a source has already been set
-
----
-
-#### `.from_query(credentials, query, table_name, **kwargs)`
-
-Load from a SQL query.
-
-**Parameters:**
-- `credentials` (str): Database connection string (e.g., `"postgresql://user:pw@host/db"`, `"duckdb:///data.db"`)
-- `query` (str): SQL query to execute
-- `table_name` (str): Name for the resulting table
-- `**kwargs`: Additional arguments
-
-**Returns:** Self for method chaining
-
-**Raises:** `ValueError` if a source has already been set
-
----
-
-### Destination Method
-
-#### `.to(destination, credentials=None, dataset="raw", write_disposition="append", **kwargs)`
-
-Execute the pipeline to the specified destination.
-
-**Parameters:**
-- `destination` (str): Destination type (`bigquery`, `redshift`, `s3`, `postgres`, `duckdb`, etc.)
-- `credentials` (str, optional): Credentials string for the destination
-- `dataset` (str): Dataset/schema name (default: `"raw"`)
-- `write_disposition` (str): Write mode - `"append"`, `"replace"`, or `"merge"` (default: `"append"`)
-- `**kwargs`: Additional destination-specific arguments
-
-**Returns:** Pipeline run result from DLT
-
-**Raises:** `ValueError` if no sources have been specified
-
----
-
-## 🏗️ Project Structure
-
-```
-fluentdlt/
-  pyproject.toml
-  README.md
-  LICENSE
-  src/
-    fldt/
-      __init__.py          # Package exports (Fluent class)
-      fluent.py            # Core Fluent class with method chaining
-      dlt_adapter.py       # DLT-Hub integration layer
-      sources.py           # Source configuration builders
-      destinations.py      # Destination configuration builders
-  tests/
-    test_smoke.py
-  .gitignore
+```python
+FluentPipeline.from_sql_database(
+    "postgresql://user:pass@localhost/db",
+    schema="public"
+)
 ```
 
----
+### Fluent API Methods
 
-## ⚙️ Installation & Setup
+Chain these methods to configure your pipeline:
 
-### Using uv (recommended)
+#### `.to(destination)`
 
-```bash
-# Install uv if you haven't already
-curl -LsSf https://astral.sh/uv/install.sh | sh
+Set the pipeline destination.
 
-# Create virtual environment
-uv venv
-
-# Activate virtual environment
-source .venv/bin/activate  # On Unix/macOS
-# .venv\Scripts\activate   # On Windows
-
-# Install package in development mode
-uv pip install -e .
+```python
+.to("duckdb")
+.to("postgres")
+.to("bigquery")
 ```
 
-### Using pip
+#### `.add_transformer(func)`
 
-```bash
-pip install fldt
+Add a transformation function. Transformers are applied sequentially.
+
+```python
+def uppercase_names(data):
+    for item in data:
+        if "name" in item:
+            item["name"] = item["name"].upper()
+    return data
+
+pipeline.add_transformer(uppercase_names)
+```
+
+#### `.with_incremental(cursor_field, initial_value=None, primary_key=None, row_order="asc")`
+
+Configure incremental loading.
+
+```python
+.with_incremental("updated_at")
+.with_incremental("id", initial_value=1000)
+.with_incremental("timestamp", primary_key=["user_id", "id"])
+```
+
+#### `.with_name(name)`
+
+Set pipeline name.
+
+```python
+.with_name("daily_user_sync")
+```
+
+#### `.with_dataset(name)`
+
+Set dataset name for destination.
+
+```python
+.with_dataset("analytics")
+```
+
+#### `.with_options(**kwargs)`
+
+Set additional pipeline options.
+
+```python
+.with_options(dev_mode=True, write_disposition="replace")
+```
+
+#### `.run(adapter=None)`
+
+Build and execute the pipeline.
+
+```python
+result = pipeline.run()
 ```
 
 ---
 
-## 🎯 Usage Patterns
+## 💡 Usage Examples
 
-### Pattern 1: Single Source → Destination
+### Example 1: Raw Data to DuckDB
 
 ```python
-from fldt import Fluent
+from fldt import FluentPipeline
 
-# S3 to BigQuery
-Fluent() \
-    .from_s3("s3://bucket/data/*.parquet", table_name="events") \
-    .to("bigquery", dataset="raw")
+data = [
+    {"id": 1, "name": "Alice", "score": 95},
+    {"id": 2, "name": "Bob", "score": 87},
+    {"id": 3, "name": "Charlie", "score": 92},
+]
+
+result = (FluentPipeline
+    .from_source(data)
+    .to("duckdb")
+    .with_dataset("students")
+    .run())
 ```
 
-### Pattern 2: Multiple Tables from Database
+### Example 2: SQL Table with Transformations
 
 ```python
-from fldt import Fluent
+from fldt import FluentPipeline
 
-# Option 1: Load specific tables
-Fluent() \
-    .from_sql_database("postgresql://user:pw@host/db",
-                       tables=["public.users", "public.orders"]) \
-    .to("redshift", credentials="redshift://...", dataset="analytics")
+def clean_data(records):
+    """Clean and validate data."""
+    for record in records:
+        record["name"] = record["name"].strip().title()
+        record["email"] = record["email"].lower()
+    return records
 
-# Option 2: Each table in separate pipeline (for different processing)
-Fluent() \
-    .from_table("postgresql://user:pw@host/db", "public.users",
-                incremental="updated_at") \
-    .to("redshift", credentials="redshift://...", dataset="analytics")
-
-Fluent() \
-    .from_table("postgresql://user:pw@host/db", "public.orders",
-                primary_key="id") \
-    .to("redshift", credentials="redshift://...", dataset="analytics")
+result = (FluentPipeline
+    .from_sql_table("postgresql://localhost/db", "users")
+    .add_transformer(clean_data)
+    .to("duckdb")
+    .with_dataset("clean_users")
+    .run())
 ```
 
-### Pattern 3: Query-Based Extraction
+### Example 3: Incremental Loading
 
 ```python
-from fldt import Fluent
+from fldt import FluentPipeline
 
-# Extract using custom SQL query
-Fluent(pipeline_name="daily_transactions") \
-    .from_query(
-        "mysql://user:pw@host/db",
-        "SELECT * FROM transactions WHERE date >= CURDATE()",
-        table_name="daily_transactions"
-    ) \
-    .to("bigquery", dataset="warehouse", write_disposition="merge")
+result = (FluentPipeline
+    .from_sql_table("postgresql://localhost/db", "events")
+    .with_incremental("created_at", initial_value="2024-01-01")
+    .to("duckdb")
+    .with_dataset("events")
+    .run())
 ```
 
-### Pattern 4: DuckDB for Local Analytics
+### Example 4: Custom SQL Query
 
 ```python
-from fldt import Fluent
+from fldt import FluentPipeline
 
-# Extract single table from Postgres to local DuckDB for fast analytics
-Fluent() \
-    .from_table("postgresql://user:pw@host/db", "orders",
-                incremental="created_at") \
-    .to("duckdb", credentials="duckdb:///data/analytics.db", dataset="staging")
+query = """
+    SELECT 
+        user_id,
+        COUNT(*) as order_count,
+        SUM(total) as total_spent
+    FROM orders
+    WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+    GROUP BY user_id
+"""
 
-# Or extract entire database
-Fluent() \
-    .from_sql_database("postgresql://user:pw@host/db") \
-    .to("duckdb", credentials="duckdb:///data/analytics.db", dataset="staging")
+result = (FluentPipeline
+    .from_sql_query("postgresql://localhost/db", query)
+    .to("duckdb")
+    .with_dataset("user_metrics")
+    .run())
+```
+
+### Example 5: Entire Database Sync
+
+```python
+from fldt import FluentPipeline
+
+result = (FluentPipeline
+    .from_sql_database("postgresql://localhost/db", schema="public")
+    .to("duckdb")
+    .with_name("full_db_sync")
+    .with_dataset("mirror")
+    .run())
+```
+
+### Example 6: Multiple Transformations
+
+```python
+from fldt import FluentPipeline
+
+def add_timestamp(data):
+    from datetime import datetime
+    for item in data:
+        item["processed_at"] = datetime.utcnow().isoformat()
+    return data
+
+def filter_active(data):
+    return [item for item in data if item.get("active", True)]
+
+result = (FluentPipeline
+    .from_sql_table("postgresql://localhost/db", "users")
+    .add_transformer(filter_active)
+    .add_transformer(add_timestamp)
+    .to("duckdb")
+    .run())
+```
+
+### Example 7: Complex Pipeline with All Options
+
+```python
+from fldt import FluentPipeline
+
+def enrich_data(records):
+    """Add computed fields."""
+    for record in records:
+        record["full_name"] = f"{record['first_name']} {record['last_name']}"
+        record["age_group"] = "adult" if record["age"] >= 18 else "minor"
+    return records
+
+result = (FluentPipeline
+    .from_sql_table(
+        "postgresql://user:pass@prod.example.com/app_db",
+        "customers",
+        schema="sales"
+    )
+    .add_transformer(enrich_data)
+    .with_incremental(
+        cursor_field="updated_at",
+        initial_value="2024-01-01",
+        primary_key="customer_id"
+    )
+    .with_name("customer_sync")
+    .with_dataset("analytics")
+    .with_options(write_disposition="merge")
+    .to("duckdb")
+    .run())
 ```
 
 ---
 
-## 🔧 Advanced Features
+## 🏗️ Architecture
 
-### Incremental Loading
+FluentDLT follows SOLID principles with clean separation of concerns:
 
-```python
-Fluent() \
-    .from_table(
-        "postgresql://...",
-        "events",
-        primary_key="id",
-        incremental="created_at"  # Only load new records
-    ) \
-    .to("bigquery", write_disposition="merge")
-```
+### Components
 
-### Custom File Formats
+- **FluentPipeline** - Main user-facing API with fluent interface
+- **PipelineBuilder** - Validates and constructs pipeline configuration
+- **PipelineExecutor** - Orchestrates pipeline execution
+- **TransformerChain** - Manages sequential data transformations
+- **DltAdapter** - Integrates with dlt (lazy-loaded)
+- **Type System** - Full type hints for IDE support
 
-```python
-Fluent() \
-    .from_s3(
-        "s3://bucket/data/*.csv",
-        table_name="data",
-        file_format="csv"
-    ) \
-    .to("redshift", dataset="staging")
-```
+### Design Principles
 
-### Write Dispositions
+- **Single Responsibility** - Each class has one clear purpose
+- **Open/Closed** - Extensible via adapter protocol
+- **Dependency Inversion** - Depends on abstractions (PipelineAdapter protocol)
+- **Fail Fast** - Validates at configuration time, not execution time
+- **Explicit over Implicit** - Clear APIs, no magic
+
+---
+
+## 🛡️ Error Handling
+
+FluentDLT provides clear, actionable error messages:
 
 ```python
-# Append (default)
-.to("bigquery", write_disposition="append")
+from fldt import FluentPipeline
+from fldt.exceptions import ValidationError, PipelineConfigurationError
 
-# Replace (truncate and load)
-.to("bigquery", write_disposition="replace")
-
-# Merge (upsert based on primary key)
-.to("bigquery", write_disposition="merge")
+try:
+    result = (FluentPipeline
+        .from_source(data)
+        .to("duckdb")
+        .run())
+except ValidationError as e:
+    print(f"Invalid input: {e}")
+except PipelineConfigurationError as e:
+    print(f"Configuration error: {e}")
 ```
+
+### Exception Hierarchy
+
+- `FluentDLTError` - Base exception
+  - `ValidationError` - Invalid input parameters
+  - `PipelineConfigurationError` - Incomplete or invalid configuration
+  - `PipelineExecutionError` - Runtime execution failures
+  - `AdapterError` - Adapter-specific errors
 
 ---
 
 ## 📚 Supported Destinations
 
-FluentDLT supports all DLT destinations:
+FluentDLT supports all dlt destinations:
 
 - **Data Warehouses**: BigQuery, Redshift, Snowflake, Databricks
-- **Databases**: PostgreSQL, DuckDB, MotherDuck, MySQL
+- **Databases**: PostgreSQL, DuckDB, MySQL, SQLite
 - **Object Storage**: S3, GCS, Azure Blob Storage
-- **And more**: See [DLT documentation](https://dlthub.com/docs/dlt-ecosystem/destinations)
+- **Files**: CSV, JSON, Parquet
 
-### DuckDB Support
-
-DuckDB is fully supported as both a source and destination:
-
-**As a Source:**
-```python
-# Single table
-Fluent() \
-    .from_table("duckdb:///path/to/source.db", "table_name") \
-    .to("bigquery", dataset="raw")
-
-# Full database
-Fluent() \
-    .from_sql_database("duckdb:///path/to/source.db") \
-    .to("bigquery", dataset="raw")
-```
-
-**As a Destination:**
-```python
-Fluent() \
-    .from_table("postgresql://...", "events") \
-    .to("duckdb", credentials="duckdb:///data/warehouse.db", dataset="analytics")
-```
-
-**DuckDB In-Memory:**
-```python
-# Use in-memory DuckDB (no file)
-Fluent() \
-    .from_s3("s3://bucket/*.csv", table_name="data") \
-    .to("duckdb", credentials="duckdb:///:memory:", dataset="temp")
-```
-
-**Installation with DuckDB:**
-```bash
-pip install fldt[duckdb]
-# or
-uv pip install fldt[duckdb]
-```
+See [dlt documentation](https://dlthub.com/docs/dlt-ecosystem/destinations) for complete list.
 
 ---
 
 ## 🧪 Testing
 
 ```bash
-# Run tests
-pytest
+# Run unit tests
+pytest tests/
 
 # Run with coverage
-pytest --cov=fldt
+pytest tests/ --cov=src/fldt --cov-report=term-missing
+
+# Run integration tests (requires dlt)
+pytest tests/test_integration.py -m integration
+```
+
+---
+
+## 🏛️ Project Structure
+
+```
+fluentdlt/
+├── src/fldt/
+│   ├── __init__.py           # Public API exports
+│   ├── fluent.py             # FluentPipeline (main API)
+│   ├── builder.py            # PipelineBuilder
+│   ├── executor.py           # PipelineExecutor
+│   ├── transformers.py       # TransformerChain
+│   ├── types.py              # Type definitions
+│   ├── exceptions.py         # Exception hierarchy
+│   └── adapters/
+│       ├── protocol.py       # PipelineAdapter protocol
+│       └── dlt_adapter.py    # DLT implementation
+├── tests/
+│   ├── test_fluent.py        # FluentPipeline tests
+│   ├── test_builder.py       # Builder tests
+│   ├── test_executor.py      # Executor tests
+│   ├── test_transformers.py  # Transformer tests
+│   ├── test_adapters.py      # Adapter tests
+│   ├── test_types.py         # Type tests
+│   ├── test_exceptions.py    # Exception tests
+│   └── test_integration.py   # Integration tests
+├── pyproject.toml            # Project configuration
+├── README.md                 # This file
+└── LICENSE                   # Apache 2.0 License
 ```
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please ensure:
+
+1. All tests pass (`pytest`)
+2. Code is type-checked (`mypy src/fldt --strict`)
+3. Code is formatted (`black src tests`)
+4. Code is linted (`ruff check src tests`)
 
 ---
 
@@ -457,7 +482,7 @@ Licensed under the **Apache License 2.0**
 
 © 2025 Juan Palomino M.
 
-> **Note:** FluentDLT builds upon the [DLT-Hub](https://github.com/dlt-hub/dlt) library (Apache 2.0).
+> **Note:** FluentDLT builds upon the [dlt](https://github.com/dlt-hub/dlt) library (Apache 2.0).
 
 ---
 
@@ -465,11 +490,10 @@ Licensed under the **Apache License 2.0**
 
 Built with ❤️ and powered by:
 
-- **[DLT-Hub](https://github.com/dlt-hub/dlt)** — Data loading made simple
-- **[Pandas](https://pandas.pydata.org/)** — Data manipulation and analysis
-- **[FSSpec](https://filesystem-spec.readthedocs.io/)** — Unified filesystem interface
-- **[Typer](https://typer.tiangolo.com/)** — Modern CLI framework
+- **[dlt](https://github.com/dlt-hub/dlt)** — Data load tool
+- **[SQLAlchemy](https://www.sqlalchemy.org/)** — SQL toolkit
+- **[Python](https://www.python.org/)** — The best programming language
 
 ---
 
-**Made with ❤️ by the FluentDLT team**
+**Made with ❤️ for the data engineering community**
