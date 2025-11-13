@@ -5,8 +5,8 @@ description = "Fluent Data Loading Toolkit — Write ETL pipelines that read lik
 readme = "README.md"
 requires-python = ">=3.10, <4.0"
 dependencies = [
-    "dlt>=1.5.0",
-    "pandas>=2.0.3",
+    "dlt[sql_database]>=1.5.0",
+    "sqlalchemy>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -24,4 +24,5 @@ dev = [
     "pytest-cov>=4.0.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
+    "mypy>=1.0.0",
 ]

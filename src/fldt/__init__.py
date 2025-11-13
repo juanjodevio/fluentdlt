@@ -1,7 +1,37 @@
 """Fluent Data Loading Toolkit — Write ETL pipelines that read like English."""
 
-from fldt.fluent import Fluent
+# Public API exports
+from fldt.exceptions import (
+    AdapterError,
+    FluentDLTError,
+    PipelineConfigurationError,
+    PipelineExecutionError,
+    ValidationError,
+)
+from fldt.types import (
+    ConnectionType,
+    DestinationType,
+    IncrementalConfig,
+    PipelineConfig,
+    SourceType,
+    TransformerFunc,
+)
 
-__all__ = ["Fluent"]
 __version__ = "0.1.0"
+
+__all__ = [
+    # Exceptions
+    "FluentDLTError",
+    "ValidationError",
+    "PipelineConfigurationError",
+    "PipelineExecutionError",
+    "AdapterError",
+    # Types
+    "SourceType",
+    "DestinationType",
+    "ConnectionType",
+    "TransformerFunc",
+    "IncrementalConfig",
+    "PipelineConfig",
+]
 
