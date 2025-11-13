@@ -1,6 +1,7 @@
 """Fluent Data Loading Toolkit — Write ETL pipelines that read like English."""
 
 # Public API exports
+from fldt.adapters import DltAdapter, PipelineAdapter
 from fldt.exceptions import (
     AdapterError,
     FluentDLTError,
@@ -33,5 +34,8 @@ __all__ = [
     "TransformerFunc",
     "IncrementalConfig",
     "PipelineConfig",
+    # Adapters
+    "PipelineAdapter",
+    "DltAdapter",
 ]
 
