@@ -2,6 +2,7 @@
 
 # Public API exports
 from fldt.adapters import DltAdapter, PipelineAdapter
+from fldt.builder import PipelineBuilder
 from fldt.exceptions import (
     AdapterError,
     FluentDLTError,
@@ -9,6 +10,7 @@ from fldt.exceptions import (
     PipelineExecutionError,
     ValidationError,
 )
+from fldt.executor import PipelineExecutor
 from fldt.transformers import TransformerChain
 from fldt.types import (
     ConnectionType,
@@ -40,5 +42,8 @@ __all__ = [
     "DltAdapter",
     # Transformers
     "TransformerChain",
+    # Builder and Executor
+    "PipelineBuilder",
+    "PipelineExecutor",
 ]
 
