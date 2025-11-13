@@ -19,10 +19,10 @@ class TestFluentPipelineInitialization:
     def test_pipeline_initializes_with_provided_builder(self):
         """FluentPipeline can be initialized with existing builder."""
         from fldt.builder import PipelineBuilder
-        
+
         builder = PipelineBuilder()
         builder.set_source([1, 2, 3])
-        
+
         pipeline = FluentPipeline(builder)
         assert pipeline._builder is builder
 
@@ -34,14 +34,14 @@ class TestFluentPipelineFromSource:
         """from_source() creates pipeline from raw data."""
         data = [{"id": 1}, {"id": 2}]
         pipeline = FluentPipeline.from_source(data)
-        
+
         assert pipeline._builder._source is data
 
     def test_from_source_with_callable(self):
         """from_source() creates pipeline from callable."""
         def data_func():
             return [1, 2, 3]
-        
+
         pipeline = FluentPipeline.from_source(data_func)
         assert pipeline._builder._source is data_func
 
@@ -49,7 +49,7 @@ class TestFluentPipelineFromSource:
         """from_source() raises ValidationError for None."""
         with pytest.raises(ValidationError) as exc_info:
             FluentPipeline.from_source(None)  # type: ignore
-        
+
         assert "cannot be None" in str(exc_info.value)
 
 
@@ -60,12 +60,12 @@ class TestFluentPipelineFromSqlTable:
     def test_from_sql_table_with_minimal_params(self, mock_sql_table):
         """from_sql_table() works with connection and table only."""
         mock_sql_table.return_value = "mock_source"
-        
+
         pipeline = FluentPipeline.from_sql_table(
             "postgresql://localhost/db",
             "users"
         )
-        
+
         assert pipeline._builder._source == "mock_source"
         mock_sql_table.assert_called_once_with(
             credentials="postgresql://localhost/db",
@@ -77,13 +77,13 @@ class TestFluentPipelineFromSqlTable:
     def test_from_sql_table_with_schema(self, mock_sql_table):
         """from_sql_table() includes schema when provided."""
         mock_sql_table.return_value = "mock_source"
-        
-        pipeline = FluentPipeline.from_sql_table(
+
+        FluentPipeline.from_sql_table(
             "postgresql://localhost/db",
             "users",
             schema="public"
         )
-        
+
         mock_sql_table.assert_called_once_with(
             credentials="postgresql://localhost/db",
             table="users",
@@ -94,14 +94,14 @@ class TestFluentPipelineFromSqlTable:
     def test_from_sql_table_with_kwargs(self, mock_sql_table):
         """from_sql_table() passes additional kwargs to dlt."""
         mock_sql_table.return_value = "mock_source"
-        
-        pipeline = FluentPipeline.from_sql_table(
+
+        FluentPipeline.from_sql_table(
             "postgresql://localhost/db",
             "users",
             chunk_size=1000,
             backend="sqlalchemy"
         )
-        
+
         call_kwargs = mock_sql_table.call_args[1]
         assert call_kwargs["chunk_size"] == 1000
         assert call_kwargs["backend"] == "sqlalchemy"
@@ -111,7 +111,7 @@ class TestFluentPipelineFromSqlTable:
         with patch.dict("sys.modules", {"dlt.sources.sql_database": None}):
             with pytest.raises(AdapterError) as exc_info:
                 FluentPipeline.from_sql_table("conn", "table")
-            
+
             assert "not available" in str(exc_info.value)
 
 
@@ -124,13 +124,13 @@ class TestFluentPipelineFromSqlQuery:
         mock_source = Mock()
         mock_source.with_resources.return_value = "mock_source_with_query"
         mock_sql_database.return_value = mock_source
-        
+
         query = "SELECT * FROM users WHERE active = true"
         pipeline = FluentPipeline.from_sql_query(
             "postgresql://localhost/db",
             query
         )
-        
+
         assert pipeline._builder._source == "mock_source_with_query"
         mock_sql_database.assert_called_once_with(
             credentials="postgresql://localhost/db"
@@ -143,13 +143,13 @@ class TestFluentPipelineFromSqlQuery:
         mock_source = Mock()
         mock_source.with_resources.return_value = "mock_source"
         mock_sql_database.return_value = mock_source
-        
-        pipeline = FluentPipeline.from_sql_query(
+
+        FluentPipeline.from_sql_query(
             "postgresql://localhost/db",
             "SELECT * FROM users",
             backend="pyodbc"
         )
-        
+
         call_kwargs = mock_sql_database.call_args[1]
         assert call_kwargs["backend"] == "pyodbc"
 
@@ -157,7 +157,7 @@ class TestFluentPipelineFromSqlQuery:
         """from_sql_query() validates query is non-empty string."""
         with pytest.raises(ValidationError) as exc_info:
             FluentPipeline.from_sql_query("conn", "")
-        
+
         assert "non-empty string" in str(exc_info.value)
 
     def test_from_sql_query_raises_error_if_dlt_not_available(self):
@@ -165,7 +165,7 @@ class TestFluentPipelineFromSqlQuery:
         with patch.dict("sys.modules", {"dlt.sources.sql_database": None}):
             with pytest.raises(AdapterError) as exc_info:
                 FluentPipeline.from_sql_query("conn", "SELECT 1")
-            
+
             assert "not available" in str(exc_info.value)
 
 
@@ -176,11 +176,11 @@ class TestFluentPipelineFromSqlDatabase:
     def test_from_sql_database_without_schema(self, mock_sql_database):
         """from_sql_database() creates pipeline for entire database."""
         mock_sql_database.return_value = "mock_source"
-        
+
         pipeline = FluentPipeline.from_sql_database(
             "postgresql://localhost/db"
         )
-        
+
         assert pipeline._builder._source == "mock_source"
         mock_sql_database.assert_called_once_with(
             credentials="postgresql://localhost/db",
@@ -191,12 +191,12 @@ class TestFluentPipelineFromSqlDatabase:
     def test_from_sql_database_with_schema(self, mock_sql_database):
         """from_sql_database() includes schema when provided."""
         mock_sql_database.return_value = "mock_source"
-        
-        pipeline = FluentPipeline.from_sql_database(
+
+        FluentPipeline.from_sql_database(
             "postgresql://localhost/db",
             schema="public"
         )
-        
+
         mock_sql_database.assert_called_once_with(
             credentials="postgresql://localhost/db",
             schema="public",
@@ -206,12 +206,12 @@ class TestFluentPipelineFromSqlDatabase:
     def test_from_sql_database_with_kwargs(self, mock_sql_database):
         """from_sql_database() passes kwargs to dlt."""
         mock_sql_database.return_value = "mock_source"
-        
-        pipeline = FluentPipeline.from_sql_database(
+
+        FluentPipeline.from_sql_database(
             "postgresql://localhost/db",
             table_names=["users", "orders"]
         )
-        
+
         call_kwargs = mock_sql_database.call_args[1]
         assert call_kwargs["table_names"] == ["users", "orders"]
 
@@ -220,7 +220,7 @@ class TestFluentPipelineFromSqlDatabase:
         with patch.dict("sys.modules", {"dlt.sources.sql_database": None}):
             with pytest.raises(AdapterError) as exc_info:
                 FluentPipeline.from_sql_database("conn")
-            
+
             assert "not available" in str(exc_info.value)
 
 
@@ -230,16 +230,16 @@ class TestFluentPipelineTo:
     def test_to_sets_destination(self):
         """to() sets the destination."""
         pipeline = FluentPipeline().from_source([1])
-        
+
         result = pipeline.to("duckdb")
-        
+
         assert result is pipeline  # Returns self
         assert pipeline._builder._destination == "duckdb"
 
     def test_to_validates_destination(self):
         """to() validates destination."""
         pipeline = FluentPipeline()
-        
+
         with pytest.raises(ValidationError):
             pipeline.to("")
 
@@ -250,17 +250,18 @@ class TestFluentPipelineAddTransformer:
     def test_add_transformer_adds_function(self):
         """add_transformer() adds transformation function."""
         pipeline = FluentPipeline()
-        transformer = lambda x: x * 2
-        
+        def transformer(x):
+            return x * 2
+
         result = pipeline.add_transformer(transformer)
-        
+
         assert result is pipeline
         assert transformer in pipeline._builder._transformers
 
     def test_add_transformer_validates_callable(self):
         """add_transformer() validates transformer is callable."""
         pipeline = FluentPipeline()
-        
+
         with pytest.raises(ValidationError):
             pipeline.add_transformer("not callable")  # type: ignore
 
@@ -271,9 +272,9 @@ class TestFluentPipelineWithIncremental:
     def test_with_incremental_sets_config(self):
         """with_incremental() configures incremental loading."""
         pipeline = FluentPipeline()
-        
+
         result = pipeline.with_incremental("updated_at")
-        
+
         assert result is pipeline
         assert pipeline._builder._incremental is not None
         assert pipeline._builder._incremental["cursor_field"] == "updated_at"
@@ -281,14 +282,14 @@ class TestFluentPipelineWithIncremental:
     def test_with_incremental_with_all_params(self):
         """with_incremental() accepts all parameters."""
         pipeline = FluentPipeline()
-        
+
         pipeline.with_incremental(
             "updated_at",
             initial_value="2024-01-01",
             primary_key="id",
             row_order="desc"
         )
-        
+
         config = pipeline._builder._incremental
         assert config["cursor_field"] == "updated_at"
         assert config["initial_value"] == "2024-01-01"
@@ -298,7 +299,7 @@ class TestFluentPipelineWithIncremental:
     def test_with_incremental_validates_params(self):
         """with_incremental() validates parameters."""
         pipeline = FluentPipeline()
-        
+
         with pytest.raises(ValidationError):
             pipeline.with_incremental("")  # Empty cursor_field
 
@@ -309,16 +310,16 @@ class TestFluentPipelineWithName:
     def test_with_name_sets_pipeline_name(self):
         """with_name() sets the pipeline name."""
         pipeline = FluentPipeline()
-        
+
         result = pipeline.with_name("my_pipeline")
-        
+
         assert result is pipeline
         assert pipeline._builder._pipeline_name == "my_pipeline"
 
     def test_with_name_validates_name(self):
         """with_name() validates name."""
         pipeline = FluentPipeline()
-        
+
         with pytest.raises(ValidationError):
             pipeline.with_name("")
 
@@ -329,16 +330,16 @@ class TestFluentPipelineWithDataset:
     def test_with_dataset_sets_dataset_name(self):
         """with_dataset() sets the dataset name."""
         pipeline = FluentPipeline()
-        
+
         result = pipeline.with_dataset("my_dataset")
-        
+
         assert result is pipeline
         assert pipeline._builder._dataset_name == "my_dataset"
 
     def test_with_dataset_validates_name(self):
         """with_dataset() validates name."""
         pipeline = FluentPipeline()
-        
+
         with pytest.raises(ValidationError):
             pipeline.with_dataset("")
 
@@ -349,9 +350,9 @@ class TestFluentPipelineWithOptions:
     def test_with_options_sets_options(self):
         """with_options() sets pipeline options."""
         pipeline = FluentPipeline()
-        
+
         result = pipeline.with_options(dev_mode=True, write_disposition="replace")
-        
+
         assert result is pipeline
         assert pipeline._builder._options["dev_mode"] is True
         assert pipeline._builder._options["write_disposition"] == "replace"
@@ -365,10 +366,10 @@ class TestFluentPipelineRun:
         mock_adapter = Mock()
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
         mock_adapter.run_pipeline.return_value = "mock_result"
-        
+
         pipeline = FluentPipeline.from_source([1, 2, 3]).to("duckdb")
         result = pipeline.run(mock_adapter)
-        
+
         assert result == "mock_result"
         mock_adapter.create_pipeline.assert_called_once()
         mock_adapter.run_pipeline.assert_called_once()
@@ -380,10 +381,10 @@ class TestFluentPipelineRun:
             mock_adapter.create_pipeline.return_value = "mock_pipeline"
             mock_adapter.run_pipeline.return_value = "mock_result"
             mock_dlt_adapter_class.return_value = mock_adapter
-            
+
             pipeline = FluentPipeline.from_source([1]).to("duckdb")
             result = pipeline.run()
-            
+
             mock_dlt_adapter_class.assert_called_once()
             assert result == "mock_result"
 
@@ -391,7 +392,7 @@ class TestFluentPipelineRun:
         """run() raises error if configuration is incomplete."""
         pipeline = FluentPipeline.from_source([1])
         # No destination set
-        
+
         with pytest.raises(PipelineConfigurationError):
             pipeline.run(Mock())
 
@@ -404,7 +405,7 @@ class TestFluentPipelineMethodChaining:
         mock_adapter = Mock()
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
         mock_adapter.run_pipeline.return_value = "mock_result"
-        
+
         result = (FluentPipeline
             .from_source([1, 2, 3])
             .to("duckdb")
@@ -414,7 +415,7 @@ class TestFluentPipelineMethodChaining:
             .with_dataset("test_dataset")
             .with_options(dev_mode=True)
             .run(mock_adapter))
-        
+
         assert result == "mock_result"
 
     @patch("dlt.sources.sql_database.sql_table")
@@ -424,14 +425,14 @@ class TestFluentPipelineMethodChaining:
         mock_adapter = Mock()
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
         mock_adapter.run_pipeline.return_value = "mock_result"
-        
+
         result = (FluentPipeline
             .from_sql_table("postgresql://localhost/db", "users")
             .add_transformer(lambda x: x)
             .with_incremental("updated_at")
             .to("duckdb")
             .run(mock_adapter))
-        
+
         assert result == "mock_result"
 
 
@@ -445,7 +446,7 @@ class TestFluentPipelineIntegration:
         mock_adapter = Mock()
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
         mock_adapter.run_pipeline.return_value = {"status": "success"}
-        
+
         result = (FluentPipeline
             .from_sql_table("postgresql://localhost/db", "users", schema="public")
             .add_transformer(lambda data: [item for item in data if item["id"] > 0])
@@ -454,7 +455,7 @@ class TestFluentPipelineIntegration:
             .with_dataset("analytics")
             .to("duckdb")
             .run(mock_adapter))
-        
+
         assert result == {"status": "success"}
 
     def test_pipeline_with_multiple_transformers(self):
@@ -462,21 +463,21 @@ class TestFluentPipelineIntegration:
         mock_adapter = Mock()
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
         mock_adapter.run_pipeline.return_value = "result"
-        
+
         def add_ten(data):
             return [x + 10 for x in data]
-        
+
         def multiply_two(data):
             return [x * 2 for x in data]
-        
+
         pipeline = (FluentPipeline
             .from_source([1, 2, 3])
             .add_transformer(add_ten)
             .add_transformer(multiply_two)
             .to("duckdb"))
-        
-        result = pipeline.run(mock_adapter)
-        
+
+        pipeline.run(mock_adapter)
+
         # Verify transformers were applied: [(1+10)*2, (2+10)*2, (3+10)*2] = [22, 24, 26]
         call_args = mock_adapter.run_pipeline.call_args
         transformed_data = call_args[0][1]
@@ -490,7 +491,7 @@ class TestFluentPipelineRepr:
         """repr() shows pipeline and builder state."""
         pipeline = FluentPipeline.from_source([1]).to("duckdb")
         repr_str = repr(pipeline)
-        
+
         assert "FluentPipeline" in repr_str
         assert "builder=" in repr_str
 

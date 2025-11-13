@@ -1,6 +1,5 @@
 """Unit tests for fldt.transformers module."""
 
-from typing import Any
 
 import pytest
 
@@ -26,10 +25,10 @@ class TestTransformerChainInitialization:
     def test_initialization_validates_transformers(self):
         """TransformerChain validates transformers during initialization."""
         invalid_transformers = [lambda x: x, "not a function", lambda x: x * 2]
-        
+
         with pytest.raises(ValidationError) as exc_info:
             TransformerChain(invalid_transformers)
-        
+
         assert "callable" in str(exc_info.value)
 
     def test_initialization_with_none(self):
@@ -44,60 +43,61 @@ class TestTransformerChainAdd:
     def test_add_single_transformer(self):
         """add() adds a transformer to the chain."""
         chain = TransformerChain()
-        transformer = lambda x: x * 2
-        
+        def transformer(x):
+            return x * 2
+
         result = chain.add(transformer)
-        
+
         assert len(chain) == 1
         assert result is chain  # Returns self for chaining
 
     def test_add_multiple_transformers(self):
         """Multiple transformers can be added sequentially."""
         chain = TransformerChain()
-        
+
         chain.add(lambda x: x * 2)
         chain.add(lambda x: x + 10)
         chain.add(lambda x: x / 2)
-        
+
         assert len(chain) == 3
 
     def test_add_method_chaining(self):
         """add() supports method chaining."""
         chain = TransformerChain()
-        
+
         result = chain.add(lambda x: x).add(lambda x: x).add(lambda x: x)
-        
+
         assert result is chain
         assert len(chain) == 3
 
     def test_add_validates_callable(self):
         """add() raises ValidationError if transformer not callable."""
         chain = TransformerChain()
-        
+
         with pytest.raises(ValidationError) as exc_info:
             chain.add("not callable")  # type: ignore
-        
+
         assert "callable" in str(exc_info.value)
         assert "str" in str(exc_info.value)
 
     def test_add_various_callable_types(self):
         """add() accepts various callable types."""
         chain = TransformerChain()
-        
+
         # Lambda
         chain.add(lambda x: x)
-        
+
         # Function
         def my_func(x):
             return x
         chain.add(my_func)
-        
+
         # Callable class
         class MyCallable:
             def __call__(self, x):
                 return x
         chain.add(MyCallable())
-        
+
         assert len(chain) == 3
 
 
@@ -108,18 +108,18 @@ class TestTransformerChainApply:
         """apply() returns original data when chain is empty."""
         chain = TransformerChain()
         data = [1, 2, 3]
-        
+
         result = chain.apply(data)
-        
+
         assert result is data
 
     def test_apply_single_transformer(self):
         """apply() applies single transformer correctly."""
         chain = TransformerChain()
         chain.add(lambda x: [item * 2 for item in x])
-        
+
         result = chain.apply([1, 2, 3])
-        
+
         assert result == [2, 4, 6]
 
     def test_apply_multiple_transformers_in_sequence(self):
@@ -127,9 +127,9 @@ class TestTransformerChainApply:
         chain = TransformerChain()
         chain.add(lambda x: [item + 10 for item in x])  # [11, 12, 13]
         chain.add(lambda x: [item * 2 for item in x])   # [22, 24, 26]
-        
+
         result = chain.apply([1, 2, 3])
-        
+
         assert result == [22, 24, 26]
 
     def test_apply_order_matters(self):
@@ -137,11 +137,11 @@ class TestTransformerChainApply:
         chain1 = TransformerChain()
         chain1.add(lambda x: x + 10)
         chain1.add(lambda x: x * 2)
-        
+
         chain2 = TransformerChain()
         chain2.add(lambda x: x * 2)
         chain2.add(lambda x: x + 10)
-        
+
         assert chain1.apply(5) == 30  # (5 + 10) * 2
         assert chain2.apply(5) == 20  # (5 * 2) + 10
 
@@ -149,14 +149,14 @@ class TestTransformerChainApply:
         """apply() works with various data types."""
         chain = TransformerChain()
         chain.add(lambda x: x.upper())
-        
+
         assert chain.apply("hello") == "HELLO"
-        
+
         # Numeric
         chain2 = TransformerChain()
         chain2.add(lambda x: x * 2)
         assert chain2.apply(5) == 10
-        
+
         # Dict
         chain3 = TransformerChain()
         chain3.add(lambda d: {**d, "new": "value"})
@@ -165,21 +165,21 @@ class TestTransformerChainApply:
     def test_apply_transformer_receives_previous_output(self):
         """Each transformer receives output from previous transformer."""
         chain = TransformerChain()
-        
+
         # Track what each transformer receives
         received = []
-        
+
         def track1(x):
             received.append(("track1", x))
             return x * 2
-        
+
         def track2(x):
             received.append(("track2", x))
             return x + 10
-        
+
         chain.add(track1).add(track2)
         result = chain.apply(5)
-        
+
         assert result == 20  # (5 * 2) + 10
         assert received == [("track1", 5), ("track2", 10)]
 
@@ -187,10 +187,10 @@ class TestTransformerChainApply:
         """apply() raises PipelineExecutionError if transformer fails."""
         chain = TransformerChain()
         chain.add(lambda x: x / 0)  # Will raise ZeroDivisionError
-        
+
         with pytest.raises(PipelineExecutionError) as exc_info:
             chain.apply(10)
-        
+
         assert "Transformation 1 failed" in str(exc_info.value)
         assert isinstance(exc_info.value.__cause__, ZeroDivisionError)
 
@@ -200,35 +200,35 @@ class TestTransformerChainApply:
         chain.add(lambda x: x * 2)
         chain.add(lambda x: x / 0)  # Second transformer fails
         chain.add(lambda x: x + 10)
-        
+
         with pytest.raises(PipelineExecutionError) as exc_info:
             chain.apply(5)
-        
+
         assert "Transformation 2 failed" in str(exc_info.value)
 
     def test_apply_stops_on_first_error(self):
         """apply() stops execution when a transformer fails."""
         chain = TransformerChain()
-        
+
         executed = []
-        
+
         def transform1(x):
             executed.append(1)
             return x * 2
-        
+
         def transform2(x):
             executed.append(2)
             raise ValueError("Intentional error")
-        
+
         def transform3(x):
             executed.append(3)
             return x + 10
-        
+
         chain.add(transform1).add(transform2).add(transform3)
-        
+
         with pytest.raises(PipelineExecutionError):
             chain.apply(5)
-        
+
         # Only first two should execute
         assert executed == [1, 2]
 
@@ -240,12 +240,12 @@ class TestTransformerChainCompose:
         """compose() combines two chains."""
         chain1 = TransformerChain()
         chain1.add(lambda x: x * 2)
-        
+
         chain2 = TransformerChain()
         chain2.add(lambda x: x + 10)
-        
+
         combined = chain1.compose(chain2)
-        
+
         assert len(combined) == 2
         assert combined.apply(5) == 20  # (5 * 2) + 10
 
@@ -254,13 +254,13 @@ class TestTransformerChainCompose:
         chain1 = TransformerChain()
         chain1.add(lambda x: x + 1)
         chain1.add(lambda x: x * 2)
-        
+
         chain2 = TransformerChain()
         chain2.add(lambda x: x - 5)
-        
+
         combined = chain1.compose(chain2)
         result = combined.apply(10)
-        
+
         # Should be: ((10 + 1) * 2) - 5 = 17
         assert result == 17
 
@@ -268,9 +268,9 @@ class TestTransformerChainCompose:
         """compose() works with empty chains."""
         chain1 = TransformerChain()
         chain1.add(lambda x: x * 2)
-        
+
         chain2 = TransformerChain()  # Empty
-        
+
         combined = chain1.compose(chain2)
         assert len(combined) == 1
         assert combined.apply(5) == 10
@@ -280,7 +280,7 @@ class TestTransformerChainCompose:
         chain1 = TransformerChain()  # Empty
         chain2 = TransformerChain()
         chain2.add(lambda x: x * 2)
-        
+
         combined = chain1.compose(chain2)
         assert len(combined) == 1
         assert combined.apply(5) == 10
@@ -289,12 +289,12 @@ class TestTransformerChainCompose:
         """compose() returns a new chain without modifying originals."""
         chain1 = TransformerChain()
         chain1.add(lambda x: x * 2)
-        
+
         chain2 = TransformerChain()
         chain2.add(lambda x: x + 10)
-        
+
         combined = chain1.compose(chain2)
-        
+
         # Original chains unchanged
         assert len(chain1) == 1
         assert len(chain2) == 1
@@ -304,10 +304,10 @@ class TestTransformerChainCompose:
     def test_compose_validates_input(self):
         """compose() raises ValidationError if argument is not TransformerChain."""
         chain = TransformerChain()
-        
+
         with pytest.raises(ValidationError) as exc_info:
             chain.compose("not a chain")  # type: ignore
-        
+
         assert "TransformerChain" in str(exc_info.value)
 
     def test_compose_multiple_chains(self):
@@ -315,9 +315,9 @@ class TestTransformerChainCompose:
         chain1 = TransformerChain([lambda x: x * 2])
         chain2 = TransformerChain([lambda x: x + 10])
         chain3 = TransformerChain([lambda x: x - 5])
-        
+
         result = chain1.compose(chain2).compose(chain3)
-        
+
         assert len(result) == 3
         assert result.apply(5) == 15  # ((5 * 2) + 10) - 5
 
@@ -329,7 +329,7 @@ class TestTransformerChainClear:
         """clear() removes all transformers from chain."""
         chain = TransformerChain()
         chain.add(lambda x: x).add(lambda x: x).add(lambda x: x)
-        
+
         assert len(chain) == 3
         chain.clear()
         assert len(chain) == 0
@@ -354,10 +354,10 @@ class TestTransformerChainProperties:
         """len() returns number of transformers."""
         chain = TransformerChain()
         assert len(chain) == 0
-        
+
         chain.add(lambda x: x)
         assert len(chain) == 1
-        
+
         chain.add(lambda x: x)
         assert len(chain) == 2
 
@@ -376,7 +376,7 @@ class TestTransformerChainProperties:
         """repr() shows number of transformers."""
         chain = TransformerChain()
         assert "transformers=0" in repr(chain)
-        
+
         chain.add(lambda x: x)
         assert "transformers=1" in repr(chain)
 
@@ -384,21 +384,23 @@ class TestTransformerChainProperties:
         """transformers property returns a copy, not the internal list."""
         chain = TransformerChain()
         chain.add(lambda x: x)
-        
+
         transformers_copy = chain.transformers
         transformers_copy.append(lambda x: x * 2)
-        
+
         # Original chain should be unchanged
         assert len(chain) == 1
 
     def test_transformers_property_contains_added_transformers(self):
         """transformers property contains the transformers added to chain."""
-        func1 = lambda x: x * 2
-        func2 = lambda x: x + 10
-        
+        def func1(x):
+            return x * 2
+        def func2(x):
+            return x + 10
+
         chain = TransformerChain()
         chain.add(func1).add(func2)
-        
+
         transformers = chain.transformers
         assert len(transformers) == 2
         assert transformers[0] is func1
@@ -410,11 +412,12 @@ class TestTransformerChainUsagePatterns:
 
     def test_reusable_transformer_functions(self):
         """Same transformer function can be added multiple times."""
-        double = lambda x: x * 2
-        
+        def double(x):
+            return x * 2
+
         chain = TransformerChain()
         chain.add(double).add(double).add(double)
-        
+
         assert chain.apply(2) == 16  # 2 * 2 * 2 * 2
 
     def test_stateful_transformer(self):
@@ -422,14 +425,14 @@ class TestTransformerChainUsagePatterns:
         class Counter:
             def __init__(self):
                 self.count = 0
-            
+
             def __call__(self, x):
                 self.count += 1
                 return x
-        
+
         counter = Counter()
         chain = TransformerChain([counter, counter, counter])
-        
+
         chain.apply(10)
         assert counter.count == 3
 
@@ -438,19 +441,19 @@ class TestTransformerChainUsagePatterns:
         # Simulate a data processing pipeline
         def parse_numbers(data: list[str]) -> list[int]:
             return [int(x) for x in data]
-        
+
         def filter_positive(data: list[int]) -> list[int]:
             return [x for x in data if x > 0]
-        
+
         def square(data: list[int]) -> list[int]:
             return [x * x for x in data]
-        
+
         def sum_all(data: list[int]) -> int:
             return sum(data)
-        
+
         chain = TransformerChain()
         chain.add(parse_numbers).add(filter_positive).add(square).add(sum_all)
-        
+
         result = chain.apply(["-5", "3", "-2", "4", "1"])
         # Positive: [3, 4, 1]
         # Squared: [9, 16, 1]
@@ -461,7 +464,7 @@ class TestTransformerChainUsagePatterns:
         """Transformers can handle None as data."""
         chain = TransformerChain()
         chain.add(lambda x: x if x is not None else 0)
-        
+
         result = chain.apply(None)
         assert result == 0
 
@@ -470,7 +473,7 @@ class TestTransformerChainUsagePatterns:
         chain = TransformerChain()
         chain.add(lambda x: str(x))  # int -> str
         chain.add(lambda x: len(x))  # str -> int
-        
+
         result = chain.apply(12345)
         assert result == 5  # Length of "12345"
 

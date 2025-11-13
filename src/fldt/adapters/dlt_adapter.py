@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 
 class DltAdapter:
     """Adapter for dlt (data load tool) pipeline backend.
-    
+
     This adapter translates fldt's pipeline configuration into dlt-specific
     pipeline construction and execution. It handles lazy loading of dlt to
     avoid import-time dependencies.
-    
+
     The adapter manages:
     - Pipeline creation with proper configuration
     - Source preparation with incremental loading
@@ -30,7 +30,7 @@ class DltAdapter:
 
     def __init__(self) -> None:
         """Initialize the DLT adapter.
-        
+
         Note: dlt is lazily imported on first use to avoid import-time
         errors if dlt is not installed or configured.
         """
@@ -39,10 +39,10 @@ class DltAdapter:
 
     def _ensure_dlt_loaded(self) -> None:
         """Lazy-load dlt modules.
-        
+
         This method imports dlt on first use, providing better error
         messages if dlt is not available.
-        
+
         Raises:
             AdapterError: If dlt cannot be imported.
         """
@@ -65,13 +65,13 @@ class DltAdapter:
 
     def create_pipeline(self, config: PipelineConfig) -> Any:
         """Create a dlt pipeline from configuration.
-        
+
         Args:
             config: Pipeline configuration with destination and options.
-        
+
         Returns:
             dlt.Pipeline object ready for execution.
-        
+
         Raises:
             AdapterError: If pipeline creation fails.
             ValidationError: If destination is not set.
@@ -120,14 +120,14 @@ class DltAdapter:
 
     def run_pipeline(self, pipeline: Any, source: Any) -> Any:
         """Execute a dlt pipeline with the given source.
-        
+
         Args:
             pipeline: dlt.Pipeline object.
             source: Data source (possibly with transformations applied).
-        
+
         Returns:
             dlt.LoadInfo with execution results.
-        
+
         Raises:
             PipelineExecutionError: If pipeline execution fails.
         """
@@ -154,17 +154,17 @@ class DltAdapter:
         transformers: list[Any],
     ) -> Any:
         """Apply transformations to the source data.
-        
+
         Transformations are applied sequentially. Each transformer receives
         the output of the previous transformation (or original source for first).
-        
+
         Args:
             source: Original data source.
             transformers: List of transformation functions.
-        
+
         Returns:
             Transformed source (or original if no transformers).
-        
+
         Raises:
             PipelineExecutionError: If any transformation fails.
         """
@@ -203,17 +203,17 @@ class DltAdapter:
         incremental_config: dict[str, Any] | None,
     ) -> Any:
         """Prepare a source with incremental loading configuration.
-        
+
         This method wraps the source with dlt's incremental loading
         functionality if incremental config is provided.
-        
+
         Args:
             source: Original data source.
             incremental_config: Incremental loading configuration (cursor field, etc.).
-        
+
         Returns:
             Source configured for incremental loading, or original source.
-        
+
         Raises:
             AdapterError: If incremental configuration fails.
         """

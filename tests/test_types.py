@@ -1,16 +1,12 @@
 """Unit tests for fldt.types module."""
 
-from typing import Any, get_args
-
-import pytest
+from typing import Any
 
 from fldt.types import (
     ConnectionType,
     DestinationType,
     IncrementalConfig,
     PipelineConfig,
-    SourceType,
-    TransformerFunc,
 )
 
 

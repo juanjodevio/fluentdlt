@@ -5,7 +5,8 @@ used throughout the fldt package. These types ensure type safety and provide
 clear contracts for all public APIs.
 """
 
-from typing import Any, Callable, Protocol, TypedDict, Union
+from collections.abc import Callable
+from typing import Any, Protocol, TypedDict
 
 try:
     from sqlalchemy.engine import Engine
@@ -22,13 +23,13 @@ class DltSourceProtocol(Protocol):
 
 
 # Source can be a dlt source, callable, iterable, or raw data
-SourceType = Union[DltSourceProtocol, Callable[..., Any], Any]
+SourceType = DltSourceProtocol | Callable[..., Any] | Any
 
 # Destination can be a string name or dlt destination object
-DestinationType = Union[str, Any]
+DestinationType = str | Any
 
 # Connection is SQLAlchemy Engine or connection string
-ConnectionType = Union[Engine, str]
+ConnectionType = Engine | str
 
 # Transformer is a callable that takes data and returns transformed data
 TransformerFunc = Callable[[Any], Any]
@@ -36,7 +37,7 @@ TransformerFunc = Callable[[Any], Any]
 
 class IncrementalConfig(TypedDict, total=False):
     """Configuration for incremental loading.
-    
+
     Attributes:
         cursor_field: Field name to use for incremental cursor (e.g., 'updated_at').
         initial_value: Starting value for the cursor (optional).
@@ -47,14 +48,14 @@ class IncrementalConfig(TypedDict, total=False):
 
     cursor_field: str
     initial_value: Any
-    primary_key: Union[str, list[str], None]
+    primary_key: str | list[str] | None
     row_order: str
     allow_external_schedulers: bool
 
 
 class PipelineConfig(TypedDict, total=False):
     """Configuration for pipeline execution.
-    
+
     Attributes:
         source: Data source to extract from.
         destination: Target destination to load into.

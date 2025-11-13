@@ -1,6 +1,6 @@
 """Unit tests for fldt.executor module."""
 
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
 import pytest
 
@@ -16,14 +16,14 @@ class TestPipelineExecutorInitialization:
         """PipelineExecutor initializes with an adapter."""
         adapter = Mock()
         executor = PipelineExecutor(adapter)
-        
+
         assert executor._adapter is adapter
 
     def test_executor_rejects_none_adapter(self):
         """PipelineExecutor raises error for None adapter."""
         with pytest.raises(PipelineConfigurationError) as exc_info:
             PipelineExecutor(None)  # type: ignore
-        
+
         assert "Adapter cannot be None" in str(exc_info.value)
 
 
@@ -35,7 +35,7 @@ class TestPipelineExecutorExecute:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
-        
+
         executor = PipelineExecutor(adapter)
         config: PipelineConfig = {
             "source": [{"id": 1}],
@@ -46,9 +46,9 @@ class TestPipelineExecutorExecute:
             "dataset_name": None,
             "options": {},
         }
-        
+
         result = executor.execute(config)
-        
+
         assert result == "mock_result"
         adapter.create_pipeline.assert_called_once_with(config)
         adapter.run_pipeline.assert_called_once()
@@ -58,13 +58,13 @@ class TestPipelineExecutorExecute:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
-        
+
         executor = PipelineExecutor(adapter)
-        
+
         # Transformer that doubles values
         def double(data):
             return [item * 2 for item in data]
-        
+
         config: PipelineConfig = {
             "source": [1, 2, 3],
             "destination": "duckdb",
@@ -74,9 +74,9 @@ class TestPipelineExecutorExecute:
             "dataset_name": None,
             "options": {},
         }
-        
-        result = executor.execute(config)
-        
+
+        executor.execute(config)
+
         # Check that run_pipeline was called with transformed data
         call_args = adapter.run_pipeline.call_args
         transformed_source = call_args[0][1]
@@ -87,15 +87,15 @@ class TestPipelineExecutorExecute:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
-        
+
         executor = PipelineExecutor(adapter)
-        
+
         def add_ten(data):
             return [item + 10 for item in data]
-        
+
         def multiply_two(data):
             return [item * 2 for item in data]
-        
+
         config: PipelineConfig = {
             "source": [1, 2, 3],
             "destination": "duckdb",
@@ -105,9 +105,9 @@ class TestPipelineExecutorExecute:
             "dataset_name": None,
             "options": {},
         }
-        
+
         executor.execute(config)
-        
+
         # Should be [22, 24, 26]: [(1+10)*2, (2+10)*2, (3+10)*2]
         call_args = adapter.run_pipeline.call_args
         transformed_source = call_args[0][1]
@@ -118,7 +118,7 @@ class TestPipelineExecutorExecute:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
-        
+
         executor = PipelineExecutor(adapter)
         config: PipelineConfig = {
             "source": [1, 2, 3],
@@ -129,9 +129,9 @@ class TestPipelineExecutorExecute:
             "dataset_name": None,
             "options": {},
         }
-        
+
         executor.execute(config)
-        
+
         # Source should be passed unchanged
         call_args = adapter.run_pipeline.call_args
         source = call_args[0][1]
@@ -142,7 +142,7 @@ class TestPipelineExecutorExecute:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
-        
+
         executor = PipelineExecutor(adapter)
         config: PipelineConfig = {
             "source": [1],
@@ -153,9 +153,9 @@ class TestPipelineExecutorExecute:
             "dataset_name": None,
             "options": {},
         }
-        
+
         executor.execute(config)
-        
+
         # Verify call order
         assert adapter.method_calls[0][0] == "create_pipeline"
         assert adapter.method_calls[1][0] == "run_pipeline"
@@ -168,17 +168,17 @@ class TestPipelineExecutorValidation:
         """execute() raises error if config is not a dict."""
         adapter = Mock()
         executor = PipelineExecutor(adapter)
-        
+
         with pytest.raises(PipelineConfigurationError) as exc_info:
             executor.execute("not a dict")  # type: ignore
-        
+
         assert "dictionary" in str(exc_info.value)
 
     def test_execute_validates_source_exists(self):
         """execute() raises error if source is missing."""
         adapter = Mock()
         executor = PipelineExecutor(adapter)
-        
+
         config: PipelineConfig = {
             "source": None,  # Missing source
             "destination": "duckdb",
@@ -188,17 +188,17 @@ class TestPipelineExecutorValidation:
             "dataset_name": None,
             "options": {},
         }
-        
+
         with pytest.raises(PipelineConfigurationError) as exc_info:
             executor.execute(config)
-        
+
         assert "source" in str(exc_info.value)
 
     def test_execute_validates_destination_exists(self):
         """execute() raises error if destination is missing."""
         adapter = Mock()
         executor = PipelineExecutor(adapter)
-        
+
         config: PipelineConfig = {
             "source": [1],
             "destination": None,  # Missing destination
@@ -208,26 +208,26 @@ class TestPipelineExecutorValidation:
             "dataset_name": None,
             "options": {},
         }
-        
+
         with pytest.raises(PipelineConfigurationError) as exc_info:
             executor.execute(config)
-        
+
         assert "destination" in str(exc_info.value)
 
     def test_execute_validates_transformers_key_exists(self):
         """execute() raises error if transformers key is missing."""
         adapter = Mock()
         executor = PipelineExecutor(adapter)
-        
+
         config = {
             "source": [1],
             "destination": "duckdb",
             # Missing transformers key
         }
-        
+
         with pytest.raises(PipelineConfigurationError) as exc_info:
             executor.execute(config)  # type: ignore
-        
+
         assert "transformers" in str(exc_info.value)
 
 
@@ -238,7 +238,7 @@ class TestPipelineExecutorErrorHandling:
         """execute() wraps adapter creation errors."""
         adapter = Mock()
         adapter.create_pipeline.side_effect = RuntimeError("Adapter error")
-        
+
         executor = PipelineExecutor(adapter)
         config: PipelineConfig = {
             "source": [1],
@@ -249,10 +249,10 @@ class TestPipelineExecutorErrorHandling:
             "dataset_name": None,
             "options": {},
         }
-        
+
         with pytest.raises(PipelineExecutionError) as exc_info:
             executor.execute(config)
-        
+
         assert "execution failed" in str(exc_info.value)
         assert isinstance(exc_info.value.__cause__, RuntimeError)
 
@@ -261,7 +261,7 @@ class TestPipelineExecutorErrorHandling:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.side_effect = RuntimeError("Run error")
-        
+
         executor = PipelineExecutor(adapter)
         config: PipelineConfig = {
             "source": [1],
@@ -272,22 +272,22 @@ class TestPipelineExecutorErrorHandling:
             "dataset_name": None,
             "options": {},
         }
-        
+
         with pytest.raises(PipelineExecutionError) as exc_info:
             executor.execute(config)
-        
+
         assert "execution failed" in str(exc_info.value)
 
     def test_execute_handles_transformer_error(self):
         """execute() wraps transformation errors."""
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
-        
+
         executor = PipelineExecutor(adapter)
-        
+
         def failing_transformer(data):
             raise ValueError("Transformation failed")
-        
+
         config: PipelineConfig = {
             "source": [1],
             "destination": "duckdb",
@@ -297,10 +297,10 @@ class TestPipelineExecutorErrorHandling:
             "dataset_name": None,
             "options": {},
         }
-        
+
         with pytest.raises(PipelineExecutionError) as exc_info:
             executor.execute(config)
-        
+
         assert "Transformation failed" in str(exc_info.value)
 
     def test_execute_preserves_pipeline_execution_errors(self):
@@ -308,7 +308,7 @@ class TestPipelineExecutorErrorHandling:
         adapter = Mock()
         original_error = PipelineExecutionError("Original error")
         adapter.create_pipeline.side_effect = original_error
-        
+
         executor = PipelineExecutor(adapter)
         config: PipelineConfig = {
             "source": [1],
@@ -319,10 +319,10 @@ class TestPipelineExecutorErrorHandling:
             "dataset_name": None,
             "options": {},
         }
-        
+
         with pytest.raises(PipelineExecutionError) as exc_info:
             executor.execute(config)
-        
+
         # Should be the same error, not wrapped
         assert exc_info.value is original_error
 
@@ -335,12 +335,12 @@ class TestPipelineExecutorIntegration:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = {"status": "success", "rows": 100}
-        
+
         executor = PipelineExecutor(adapter)
-        
+
         def uppercase_names(data):
             return [{**item, "name": item["name"].upper()} for item in data]
-        
+
         config: PipelineConfig = {
             "source": [{"id": 1, "name": "alice"}, {"id": 2, "name": "bob"}],
             "destination": "postgres",
@@ -350,11 +350,11 @@ class TestPipelineExecutorIntegration:
             "dataset_name": "test_dataset",
             "options": {"dev_mode": True},
         }
-        
+
         result = executor.execute(config)
-        
+
         assert result == {"status": "success", "rows": 100}
-        
+
         # Verify transformed data was passed to adapter
         call_args = adapter.run_pipeline.call_args
         transformed_source = call_args[0][1]
@@ -366,9 +366,9 @@ class TestPipelineExecutorIntegration:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "result"
-        
+
         executor = PipelineExecutor(adapter)
-        
+
         config1: PipelineConfig = {
             "source": [1],
             "destination": "duckdb",
@@ -378,7 +378,7 @@ class TestPipelineExecutorIntegration:
             "dataset_name": None,
             "options": {},
         }
-        
+
         config2: PipelineConfig = {
             "source": [2],
             "destination": "postgres",
@@ -388,10 +388,10 @@ class TestPipelineExecutorIntegration:
             "dataset_name": None,
             "options": {},
         }
-        
+
         result1 = executor.execute(config1)
         result2 = executor.execute(config2)
-        
+
         assert result1 == "result"
         assert result2 == "result"
         assert adapter.create_pipeline.call_count == 2
@@ -404,9 +404,9 @@ class TestPipelineExecutorRepr:
         """repr() shows adapter type."""
         adapter = Mock()
         executor = PipelineExecutor(adapter)
-        
+
         repr_str = repr(executor)
-        
+
         assert "PipelineExecutor" in repr_str
         assert "adapter" in repr_str
 

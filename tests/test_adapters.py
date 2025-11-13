@@ -1,7 +1,7 @@
 """Unit tests for fldt adapter modules."""
 
 from typing import Any
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -56,7 +56,7 @@ class TestDltAdapterInitialization:
         """DLT modules are loaded on first use."""
         mock_dlt = MagicMock()
         mock_dlt.sources = MagicMock()
-        
+
         adapter = DltAdapter()
 
         # dlt not loaded yet
@@ -91,7 +91,7 @@ class TestDltAdapterInitialization:
         with patch.dict("sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}):
             adapter._ensure_dlt_loaded()
             first_dlt = adapter._dlt
-            
+
             adapter._ensure_dlt_loaded()  # Second call
             second_dlt = adapter._dlt
 

@@ -374,6 +374,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+all = [
+    { name = "duckdb" },
+]
 duckdb = [
     { name = "duckdb" },
 ]
@@ -390,10 +393,11 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "dlt", extras = ["sql-database"], specifier = ">=1.5.0" },
+    { name = "duckdb", marker = "extra == 'all'", specifier = ">=0.9.0" },
     { name = "duckdb", marker = "extra == 'duckdb'", specifier = ">=0.9.0" },
     { name = "sqlalchemy", specifier = ">=2.0.0" },
 ]
-provides-extras = ["duckdb"]
+provides-extras = ["duckdb", "all"]
 
 [package.metadata.requires-dev]
 dev = [
