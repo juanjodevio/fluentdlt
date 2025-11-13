@@ -9,6 +9,7 @@ from fldt.exceptions import (
     PipelineExecutionError,
     ValidationError,
 )
+from fldt.transformers import TransformerChain
 from fldt.types import (
     ConnectionType,
     DestinationType,
@@ -37,5 +38,7 @@ __all__ = [
     # Adapters
     "PipelineAdapter",
     "DltAdapter",
+    # Transformers
+    "TransformerChain",
 ]
 
