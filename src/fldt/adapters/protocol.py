@@ -87,3 +87,22 @@ class PipelineAdapter(Protocol):
             PipelineExecutionError: If any transformation fails.
         """
         ...
+
+    def prepare_source_with_incremental(
+        self,
+        source: Any,
+        incremental_config: dict[str, Any] | None,
+    ) -> Any:
+        """Wrap source with incremental configuration if provided.
+
+        Args:
+            source: Original data source.
+            incremental_config: Incremental settings produced by builder.
+
+        Returns:
+            Source object prepared for incremental execution.
+
+        Raises:
+            AdapterError: If incremental configuration cannot be applied.
+        """
+        ...

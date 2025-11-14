@@ -277,7 +277,7 @@ class TestFluentPipelineWithIncremental:
         pipeline = FluentPipeline()
 
         pipeline.with_incremental(
-            "updated_at", initial_value="2024-01-01", primary_key="id", row_order="desc"
+            "updated_at", initial_value="2024-01-01", primary_key="id"
         )
 
         config = pipeline._builder._incremental
@@ -285,7 +285,6 @@ class TestFluentPipelineWithIncremental:
         assert config["cursor_field"] == "updated_at"
         assert config["initial_value"] == "2024-01-01"
         assert config["primary_key"] == "id"
-        assert config["row_order"] == "desc"
 
     def test_with_incremental_validates_params(self) -> None:
         """with_incremental() validates parameters."""
@@ -357,6 +356,9 @@ class TestFluentPipelineRun:
         mock_adapter = Mock()
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
         mock_adapter.run_pipeline.return_value = "mock_result"
+        mock_adapter.prepare_source_with_incremental.side_effect = (
+            lambda source, _: source
+        )
 
         pipeline = FluentPipeline.from_source([1, 2, 3]).to("duckdb")
         result = pipeline.run(mock_adapter)
@@ -371,6 +373,9 @@ class TestFluentPipelineRun:
             mock_adapter = Mock()
             mock_adapter.create_pipeline.return_value = "mock_pipeline"
             mock_adapter.run_pipeline.return_value = "mock_result"
+            mock_adapter.prepare_source_with_incremental.side_effect = (
+                lambda source, _: source
+            )
             mock_dlt_adapter_class.return_value = mock_adapter
 
             pipeline = FluentPipeline.from_source([1]).to("duckdb")
@@ -396,6 +401,9 @@ class TestFluentPipelineMethodChaining:
         mock_adapter = Mock()
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
         mock_adapter.run_pipeline.return_value = "mock_result"
+        mock_adapter.prepare_source_with_incremental.side_effect = (
+            lambda source, _: source
+        )
 
         result = (
             FluentPipeline.from_source([1, 2, 3])
@@ -417,6 +425,9 @@ class TestFluentPipelineMethodChaining:
         mock_adapter = Mock()
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
         mock_adapter.run_pipeline.return_value = "mock_result"
+        mock_adapter.prepare_source_with_incremental.side_effect = (
+            lambda source, _: source
+        )
 
         result = (
             FluentPipeline.from_sql_table("postgresql://localhost/db", "users")
@@ -439,6 +450,9 @@ class TestFluentPipelineIntegration:
         mock_adapter = Mock()
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
         mock_adapter.run_pipeline.return_value = {"status": "success"}
+        mock_adapter.prepare_source_with_incremental.side_effect = (
+            lambda source, _: source
+        )
 
         result = (
             FluentPipeline.from_sql_table(
@@ -459,6 +473,9 @@ class TestFluentPipelineIntegration:
         mock_adapter = Mock()
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
         mock_adapter.run_pipeline.return_value = "result"
+        mock_adapter.prepare_source_with_incremental.side_effect = (
+            lambda source, _: source
+        )
 
         def add_ten(data: Iterable[int]) -> list[int]:
             return [x + 10 for x in data]

@@ -19,6 +19,10 @@ def _apply_transformers(source: Any, transformers: list[Any]) -> Any:
     return result
 
 
+def _pass_through_incremental(source: Any, _: Any) -> Any:
+    return source
+
+
 class TestPipelineExecutorInitialization:
     """Test PipelineExecutor initialization."""
 
@@ -46,6 +50,7 @@ class TestPipelineExecutorExecute:
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
         adapter.apply_transformations.side_effect = _apply_transformers
+        adapter.prepare_source_with_incremental.side_effect = _pass_through_incremental
 
         executor = PipelineExecutor(adapter)
         config: PipelineConfig = {
@@ -62,6 +67,9 @@ class TestPipelineExecutorExecute:
 
         assert result == "mock_result"
         adapter.create_pipeline.assert_called_once_with(config)
+        adapter.prepare_source_with_incremental.assert_called_once_with(
+            config["source"], config["incremental"]
+        )
         adapter.apply_transformations.assert_called_once_with(
             config["source"], config["transformers"]
         )
@@ -73,6 +81,7 @@ class TestPipelineExecutorExecute:
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
         adapter.apply_transformations.side_effect = _apply_transformers
+        adapter.prepare_source_with_incremental.side_effect = _pass_through_incremental
 
         executor = PipelineExecutor(adapter)
 
@@ -97,12 +106,43 @@ class TestPipelineExecutorExecute:
         transformed_source = call_args[0][1]
         assert transformed_source == [2, 4, 6]
 
+    def test_execute_applies_incremental_before_transformations(self) -> None:
+        """execute() prepares source with incremental config before transforms."""
+        adapter = Mock()
+        adapter.create_pipeline.return_value = "mock_pipeline"
+        adapter.run_pipeline.return_value = "mock_result"
+        adapter.apply_transformations.side_effect = _apply_transformers
+
+        wrapped_source = [{"id": 1, "wrapped": True}]
+        adapter.prepare_source_with_incremental.return_value = wrapped_source
+
+        executor = PipelineExecutor(adapter)
+        config: PipelineConfig = {
+            "source": [{"id": 1}],
+            "destination": "duckdb",
+            "transformers": [],
+            "incremental": {"cursor_field": "updated_at"},
+            "pipeline_name": None,
+            "dataset_name": None,
+            "options": {},
+        }
+
+        executor.execute(config)
+
+        adapter.prepare_source_with_incremental.assert_called_once_with(
+            config["source"], config["incremental"]
+        )
+        adapter.apply_transformations.assert_called_once_with(
+            wrapped_source, config["transformers"]
+        )
+
     def test_execute_with_multiple_transformers(self) -> None:
         """execute() chains multiple transformers."""
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
         adapter.apply_transformations.side_effect = _apply_transformers
+        adapter.prepare_source_with_incremental.side_effect = _pass_through_incremental
 
         executor = PipelineExecutor(adapter)
 
@@ -135,6 +175,7 @@ class TestPipelineExecutorExecute:
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
         adapter.apply_transformations.side_effect = _apply_transformers
+        adapter.prepare_source_with_incremental.side_effect = _pass_through_incremental
 
         executor = PipelineExecutor(adapter)
         config: PipelineConfig = {
@@ -160,6 +201,7 @@ class TestPipelineExecutorExecute:
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
         adapter.apply_transformations.side_effect = _apply_transformers
+        adapter.prepare_source_with_incremental.side_effect = _pass_through_incremental
 
         executor = PipelineExecutor(adapter)
         config: PipelineConfig = {
@@ -176,8 +218,9 @@ class TestPipelineExecutorExecute:
 
         # Verify call order
         assert adapter.method_calls[0][0] == "create_pipeline"
-        assert adapter.method_calls[1][0] == "apply_transformations"
-        assert adapter.method_calls[2][0] == "run_pipeline"
+        assert adapter.method_calls[1][0] == "prepare_source_with_incremental"
+        assert adapter.method_calls[2][0] == "apply_transformations"
+        assert adapter.method_calls[3][0] == "run_pipeline"
 
 
 class TestPipelineExecutorValidation:
@@ -256,6 +299,7 @@ class TestPipelineExecutorErrorHandling:
     def test_execute_handles_adapter_create_error(self) -> None:
         """execute() wraps adapter creation errors."""
         adapter = Mock()
+        adapter.prepare_source_with_incremental.side_effect = _pass_through_incremental
         adapter.create_pipeline.side_effect = RuntimeError("Adapter error")
 
         executor = PipelineExecutor(adapter)
@@ -281,6 +325,7 @@ class TestPipelineExecutorErrorHandling:
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.side_effect = RuntimeError("Run error")
         adapter.apply_transformations.side_effect = _apply_transformers
+        adapter.prepare_source_with_incremental.side_effect = _pass_through_incremental
 
         executor = PipelineExecutor(adapter)
         config: PipelineConfig = {
@@ -305,6 +350,7 @@ class TestPipelineExecutorErrorHandling:
         adapter.apply_transformations.side_effect = PipelineExecutionError(
             "Transformation failed"
         )
+        adapter.prepare_source_with_incremental.side_effect = _pass_through_incremental
 
         executor = PipelineExecutor(adapter)
 
@@ -356,6 +402,7 @@ class TestPipelineExecutorIntegration:
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = {"status": "success", "rows": 100}
         adapter.apply_transformations.side_effect = _apply_transformers
+        adapter.prepare_source_with_incremental.side_effect = _pass_through_incremental
 
         executor = PipelineExecutor(adapter)
 
@@ -388,6 +435,7 @@ class TestPipelineExecutorIntegration:
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "result"
         adapter.apply_transformations.side_effect = _apply_transformers
+        adapter.prepare_source_with_incremental.side_effect = _pass_through_incremental
 
         executor = PipelineExecutor(adapter)
 

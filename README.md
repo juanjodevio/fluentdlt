@@ -172,7 +172,7 @@ def uppercase_names(data):
 pipeline.add_transformer(uppercase_names)
 ```
 
-#### `.with_incremental(cursor_field, initial_value=None, primary_key=None, row_order="asc")`
+#### `.with_incremental(cursor_field, initial_value=None, primary_key=None)`
 
 Configure incremental loading.
 

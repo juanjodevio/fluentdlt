@@ -317,7 +317,6 @@ class FluentPipeline:
         cursor_field: str,
         initial_value: Any = None,
         primary_key: str | list[str] | None = None,
-        row_order: str = "asc",
         **kwargs: Any,
     ) -> "FluentPipeline":
         """Configure incremental loading for the pipeline.
@@ -326,7 +325,6 @@ class FluentPipeline:
             cursor_field: Field to use as cursor (e.g., 'updated_at').
             initial_value: Starting value for the cursor.
             primary_key: Primary key field(s) for deduplication.
-            row_order: Row ordering - 'asc' or 'desc'.
             **kwargs: Additional incremental loading options.
 
         Returns:
@@ -346,7 +344,6 @@ class FluentPipeline:
             cursor_field=cursor_field,
             initial_value=initial_value,
             primary_key=primary_key,
-            row_order=row_order,
             **kwargs,
         )
         return self

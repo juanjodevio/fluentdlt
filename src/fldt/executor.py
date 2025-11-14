@@ -80,14 +80,21 @@ class PipelineExecutor:
             logger.debug("Creating pipeline")
             pipeline = self._adapter.create_pipeline(config)
 
-            # Step 2: Apply transformations
+            # Step 2: Prepare source with incremental settings if present
+            logger.debug("Preparing source with incremental configuration")
+            prepared_source = self._adapter.prepare_source_with_incremental(
+                config["source"],
+                config.get("incremental"),
+            )
+
+            # Step 3: Apply transformations
             logger.debug("Preparing source with transformations")
             transformed_source = self._adapter.apply_transformations(
-                config["source"],
+                prepared_source,
                 config["transformers"],
             )
 
-            # Step 3: Run pipeline
+            # Step 4: Run pipeline
             logger.debug("Running pipeline")
             result = self._adapter.run_pipeline(pipeline, transformed_source)
 

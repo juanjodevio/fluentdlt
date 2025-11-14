@@ -42,14 +42,12 @@ class IncrementalConfig(TypedDict, total=False):
         cursor_field: Field name to use for incremental cursor (e.g., 'updated_at').
         initial_value: Starting value for the cursor (optional).
         primary_key: Primary key field(s) for deduplication (optional).
-        row_order: Order of rows - 'asc' or 'desc'. Defaults to 'asc'.
         allow_external_schedulers: Allow external schedulers to manage state.
     """
 
     cursor_field: str
     initial_value: Any
     primary_key: str | list[str] | None
-    row_order: str
     allow_external_schedulers: bool
 
 
