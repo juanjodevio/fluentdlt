@@ -285,6 +285,41 @@ def test_new_table(self, test_database, clean_dlt_state):
 
 ---
 
+## 📊 Code Quality (SonarCloud)
+
+All pull requests must stay green on the SonarCloud quality gate. The GitHub Action workflow runs unit tests with coverage, uploads `coverage.xml`, and publishes the scan to SonarCloud. If the quality gate fails (bugs, code smells, low coverage), the PR cannot merge until the issues are resolved.
+
+### Dashboard & Project Keys
+
+- Sonar dashboard: `https://sonarcloud.io/project/overview?id=juanjodevio`
+- Configuration lives in `sonar-project.properties`
+- Secrets: repository-level `SONAR_TOKEN` plus the built-in `GITHUB_TOKEN`
+
+Update `sonar.organization` and `sonar.projectKey` after the project is created in SonarCloud. Keep the `sonar.python.coverage.reportPaths=coverage.xml` entry untouched—coverage uploads rely on it.
+
+### Local Workflow
+
+```bash
+# Run unit tests with XML coverage (matches CI)
+uv run pytest tests/unittest --cov=src/fldt --cov-report=term-missing --cov-report=xml
+
+# Optional: inspect coverage locally
+coverage html
+```
+
+Before opening a PR:
+1. Run the command above to regenerate `coverage.xml`
+2. Fix any issues flagged by `uv run ruff check src tests`
+3. If SonarCloud reports outstanding issues, link the remediation in your PR description
+
+### Troubleshooting
+
+- **Missing coverage in Sonar:** ensure `coverage.xml` is committed to `.gitignore` (already handled) but still present in the workspace before the Sonar step.
+- **Analysis skipped on forks:** forked repos do not have `SONAR_TOKEN`—push to the main repo or request a temporary token from a maintainer.
+- **False positives:** discuss in the PR and add a justification before using `# noqa` or `# pragma: no cover`.
+
+---
+
 ## 🎨 Code Style
 
 ### Formatting

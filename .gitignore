@@ -44,7 +44,6 @@ htmlcov/
 .coverage.*
 .cache
 nosetests.xml
-coverage.xml
 *.cover
 *.py.cover
 .hypothesis/
@@ -215,3 +214,7 @@ tests/.test_dbs/
 
 # DLT state files
 .dlt/
+
+# SonarCloud artifacts
+.scannerwork/
+coverage.xml

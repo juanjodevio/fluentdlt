@@ -4,6 +4,11 @@
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=juanjodevio&metric=alert_status)](https://sonarcloud.io/dashboard?id=juanjodevio)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=juanjodevio&metric=coverage)](https://sonarcloud.io/dashboard?id=juanjodevio)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=juanjodevio&metric=code_smells)](https://sonarcloud.io/dashboard?id=juanjodevio)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=juanjodevio&metric=bugs)](https://sonarcloud.io/dashboard?id=juanjodevio)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=juanjodevio&metric=security_rating)](https://sonarcloud.io/dashboard?id=juanjodevio)
 
 ---
 
