@@ -80,7 +80,7 @@ jobs:
         run: uv run pytest tests/unittest --cov=src/fldt --cov-report=term-missing --cov-report=xml:coverage.xml --cov-branch
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
