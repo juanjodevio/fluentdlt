@@ -75,7 +75,10 @@ class TransformerChain:
         self._transformers.append(transformer)
         logger.debug(
             "Added transformer to chain",
-            extra={"transformer": str(transformer), "chain_length": len(self._transformers)},
+            extra={
+                "transformer": str(transformer),
+                "chain_length": len(self._transformers),
+            },
         )
         return self
 
@@ -167,7 +170,9 @@ class TransformerChain:
         Returns:
             Self for method chaining.
         """
-        logger.debug(f"Clearing transformer chain (had {len(self._transformers)} transformers)")
+        logger.debug(
+            f"Clearing transformer chain (had {len(self._transformers)} transformers)"
+        )
         self._transformers.clear()
         return self
 
@@ -190,4 +195,3 @@ class TransformerChain:
         Returns a copy to prevent external modification of the internal list.
         """
         return self._transformers.copy()
-

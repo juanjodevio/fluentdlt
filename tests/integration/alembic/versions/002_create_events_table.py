@@ -33,7 +33,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
     )
-    
+
     # Create indexes for incremental loading and foreign key
     op.create_index("idx_events_created_at", "events", ["created_at"])
     op.create_index("idx_events_user_id", "events", ["user_id"])
@@ -44,4 +44,3 @@ def downgrade() -> None:
     op.drop_index("idx_events_user_id", table_name="events")
     op.drop_index("idx_events_created_at", table_name="events")
     op.drop_table("events")
-

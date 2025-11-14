@@ -36,4 +36,3 @@ def sample_transformer():
         return data
 
     return uppercase_name
-

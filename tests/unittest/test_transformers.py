@@ -1,6 +1,5 @@
 """Unit tests for fldt.transformers module."""
 
-
 import pytest
 
 from fldt.exceptions import PipelineExecutionError, ValidationError
@@ -43,6 +42,7 @@ class TestTransformerChainAdd:
     def test_add_single_transformer(self):
         """add() adds a transformer to the chain."""
         chain = TransformerChain()
+
         def transformer(x):
             return x * 2
 
@@ -90,12 +90,14 @@ class TestTransformerChainAdd:
         # Function
         def my_func(x):
             return x
+
         chain.add(my_func)
 
         # Callable class
         class MyCallable:
             def __call__(self, x):
                 return x
+
         chain.add(MyCallable())
 
         assert len(chain) == 3
@@ -126,7 +128,7 @@ class TestTransformerChainApply:
         """apply() chains multiple transformers in order."""
         chain = TransformerChain()
         chain.add(lambda x: [item + 10 for item in x])  # [11, 12, 13]
-        chain.add(lambda x: [item * 2 for item in x])   # [22, 24, 26]
+        chain.add(lambda x: [item * 2 for item in x])  # [22, 24, 26]
 
         result = chain.apply([1, 2, 3])
 
@@ -393,8 +395,10 @@ class TestTransformerChainProperties:
 
     def test_transformers_property_contains_added_transformers(self):
         """transformers property contains the transformers added to chain."""
+
         def func1(x):
             return x * 2
+
         def func2(x):
             return x + 10
 
@@ -412,6 +416,7 @@ class TestTransformerChainUsagePatterns:
 
     def test_reusable_transformer_functions(self):
         """Same transformer function can be added multiple times."""
+
         def double(x):
             return x * 2
 
@@ -422,6 +427,7 @@ class TestTransformerChainUsagePatterns:
 
     def test_stateful_transformer(self):
         """Transformers can maintain state (though not recommended)."""
+
         class Counter:
             def __init__(self):
                 self.count = 0
@@ -438,6 +444,7 @@ class TestTransformerChainUsagePatterns:
 
     def test_complex_transformation_pipeline(self):
         """Complex multi-step transformation works correctly."""
+
         # Simulate a data processing pipeline
         def parse_numbers(data: list[str]) -> list[int]:
             return [int(x) for x in data]
@@ -476,4 +483,3 @@ class TestTransformerChainUsagePatterns:
 
         result = chain.apply(12345)
         assert result == 5  # Length of "12345"
-

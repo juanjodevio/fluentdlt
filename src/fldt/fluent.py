@@ -135,6 +135,7 @@ class FluentPipeline:
             from dlt.sources.sql_database import sql_table
         except ImportError as e:
             from fldt.exceptions import AdapterError
+
             raise AdapterError(_SQL_DATABASE_IMPORT_ERROR) from e
 
         logger.info(
@@ -190,10 +191,12 @@ class FluentPipeline:
             from dlt.sources.sql_database import sql_database
         except ImportError as e:
             from fldt.exceptions import AdapterError
+
             raise AdapterError(_SQL_DATABASE_IMPORT_ERROR) from e
 
         if not query or not isinstance(query, str):
             from fldt.exceptions import ValidationError
+
             raise ValidationError("Query must be a non-empty string")
 
         logger.info("Creating pipeline from SQL query")
@@ -244,6 +247,7 @@ class FluentPipeline:
             from dlt.sources.sql_database import sql_database
         except ImportError as e:
             from fldt.exceptions import AdapterError
+
             raise AdapterError(_SQL_DATABASE_IMPORT_ERROR) from e
 
         logger.info(

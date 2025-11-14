@@ -87,4 +87,3 @@ class PipelineAdapter(Protocol):
             PipelineExecutionError: If any transformation fails.
         """
         ...
-

@@ -63,7 +63,9 @@ class TestDltAdapterInitialization:
         assert adapter._dlt is None
 
         # Trigger lazy loading
-        with patch.dict("sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}):
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
             adapter._ensure_dlt_loaded()
 
         # Now loaded
@@ -88,7 +90,9 @@ class TestDltAdapterInitialization:
         adapter = DltAdapter()
 
         # Load first time
-        with patch.dict("sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}):
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
             adapter._ensure_dlt_loaded()
             first_dlt = adapter._dlt
 
@@ -129,7 +133,9 @@ class TestDltAdapterPipelineCreation:
         mock_dlt.pipeline.return_value = mock_pipeline
 
         adapter = DltAdapter()
-        with patch.dict("sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}):
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
             adapter._ensure_dlt_loaded()
 
         config: PipelineConfig = {
@@ -158,7 +164,9 @@ class TestDltAdapterPipelineCreation:
         mock_dlt.pipeline.return_value = mock_pipeline
 
         adapter = DltAdapter()
-        with patch.dict("sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}):
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
             adapter._ensure_dlt_loaded()
 
         config: PipelineConfig = {
@@ -188,7 +196,9 @@ class TestDltAdapterPipelineCreation:
         mock_dlt.pipeline.side_effect = Exception("DLT internal error")
 
         adapter = DltAdapter()
-        with patch.dict("sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}):
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
             adapter._ensure_dlt_loaded()
 
         config: PipelineConfig = {
@@ -325,7 +335,9 @@ class TestDltAdapterTransformations:
             return data
 
         with pytest.raises(PipelineExecutionError) as exc_info:
-            adapter.apply_transformations(source, [transformer1, transformer2, transformer3])
+            adapter.apply_transformations(
+                source, [transformer1, transformer2, transformer3]
+            )
 
         assert "Transformation 2 failed" in str(exc_info.value)
 
@@ -350,7 +362,9 @@ class TestDltAdapterIncrementalLoading:
         mock_dlt.sources.incremental.return_value = mock_incremental
 
         adapter = DltAdapter()
-        with patch.dict("sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}):
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
             adapter._ensure_dlt_loaded()
 
         source = [{"id": 1, "updated_at": "2024-01-01"}]
@@ -379,7 +393,9 @@ class TestDltAdapterIncrementalLoading:
         mock_dlt.sources.incremental.return_value = mock_incremental
 
         adapter = DltAdapter()
-        with patch.dict("sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}):
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
             adapter._ensure_dlt_loaded()
 
         source = [{"updated_at": "2024-01-01"}]
@@ -397,10 +413,14 @@ class TestDltAdapterIncrementalLoading:
         """prepare_source_with_incremental raises AdapterError on failure."""
         mock_dlt = MagicMock()
         mock_dlt.sources = MagicMock()
-        mock_dlt.sources.incremental.side_effect = Exception("Incremental config failed")
+        mock_dlt.sources.incremental.side_effect = Exception(
+            "Incremental config failed"
+        )
 
         adapter = DltAdapter()
-        with patch.dict("sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}):
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
             adapter._ensure_dlt_loaded()
 
         source = [{"id": 1}]
@@ -411,4 +431,3 @@ class TestDltAdapterIncrementalLoading:
 
         assert "Failed to configure incremental loading" in str(exc_info.value)
         assert isinstance(exc_info.value.__cause__, Exception)
-

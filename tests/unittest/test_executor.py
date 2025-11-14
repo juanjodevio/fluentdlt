@@ -409,4 +409,3 @@ class TestPipelineExecutorRepr:
 
         assert "PipelineExecutor" in repr_str
         assert "adapter" in repr_str
-

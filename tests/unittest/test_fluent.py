@@ -39,6 +39,7 @@ class TestFluentPipelineFromSource:
 
     def test_from_source_with_callable(self):
         """from_source() creates pipeline from callable."""
+
         def data_func():
             return [1, 2, 3]
 
@@ -61,10 +62,7 @@ class TestFluentPipelineFromSqlTable:
         """from_sql_table() works with connection and table only."""
         mock_sql_table.return_value = "mock_source"
 
-        pipeline = FluentPipeline.from_sql_table(
-            "postgresql://localhost/db",
-            "users"
-        )
+        pipeline = FluentPipeline.from_sql_table("postgresql://localhost/db", "users")
 
         assert pipeline._builder._source == "mock_source"
         mock_sql_table.assert_called_once_with(
@@ -79,9 +77,7 @@ class TestFluentPipelineFromSqlTable:
         mock_sql_table.return_value = "mock_source"
 
         FluentPipeline.from_sql_table(
-            "postgresql://localhost/db",
-            "users",
-            schema="public"
+            "postgresql://localhost/db", "users", schema="public"
         )
 
         mock_sql_table.assert_called_once_with(
@@ -96,10 +92,7 @@ class TestFluentPipelineFromSqlTable:
         mock_sql_table.return_value = "mock_source"
 
         FluentPipeline.from_sql_table(
-            "postgresql://localhost/db",
-            "users",
-            chunk_size=1000,
-            backend="sqlalchemy"
+            "postgresql://localhost/db", "users", chunk_size=1000, backend="sqlalchemy"
         )
 
         call_kwargs = mock_sql_table.call_args[1]
@@ -126,10 +119,7 @@ class TestFluentPipelineFromSqlQuery:
         mock_sql_database.return_value = mock_source
 
         query = "SELECT * FROM users WHERE active = true"
-        pipeline = FluentPipeline.from_sql_query(
-            "postgresql://localhost/db",
-            query
-        )
+        pipeline = FluentPipeline.from_sql_query("postgresql://localhost/db", query)
 
         assert pipeline._builder._source == "mock_source_with_query"
         mock_sql_database.assert_called_once_with(
@@ -145,9 +135,7 @@ class TestFluentPipelineFromSqlQuery:
         mock_sql_database.return_value = mock_source
 
         FluentPipeline.from_sql_query(
-            "postgresql://localhost/db",
-            "SELECT * FROM users",
-            backend="pyodbc"
+            "postgresql://localhost/db", "SELECT * FROM users", backend="pyodbc"
         )
 
         call_kwargs = mock_sql_database.call_args[1]
@@ -177,9 +165,7 @@ class TestFluentPipelineFromSqlDatabase:
         """from_sql_database() creates pipeline for entire database."""
         mock_sql_database.return_value = "mock_source"
 
-        pipeline = FluentPipeline.from_sql_database(
-            "postgresql://localhost/db"
-        )
+        pipeline = FluentPipeline.from_sql_database("postgresql://localhost/db")
 
         assert pipeline._builder._source == "mock_source"
         mock_sql_database.assert_called_once_with(
@@ -192,10 +178,7 @@ class TestFluentPipelineFromSqlDatabase:
         """from_sql_database() includes schema when provided."""
         mock_sql_database.return_value = "mock_source"
 
-        FluentPipeline.from_sql_database(
-            "postgresql://localhost/db",
-            schema="public"
-        )
+        FluentPipeline.from_sql_database("postgresql://localhost/db", schema="public")
 
         mock_sql_database.assert_called_once_with(
             credentials="postgresql://localhost/db",
@@ -208,8 +191,7 @@ class TestFluentPipelineFromSqlDatabase:
         mock_sql_database.return_value = "mock_source"
 
         FluentPipeline.from_sql_database(
-            "postgresql://localhost/db",
-            table_names=["users", "orders"]
+            "postgresql://localhost/db", table_names=["users", "orders"]
         )
 
         call_kwargs = mock_sql_database.call_args[1]
@@ -250,6 +232,7 @@ class TestFluentPipelineAddTransformer:
     def test_add_transformer_adds_function(self):
         """add_transformer() adds transformation function."""
         pipeline = FluentPipeline()
+
         def transformer(x):
             return x * 2
 
@@ -284,10 +267,7 @@ class TestFluentPipelineWithIncremental:
         pipeline = FluentPipeline()
 
         pipeline.with_incremental(
-            "updated_at",
-            initial_value="2024-01-01",
-            primary_key="id",
-            row_order="desc"
+            "updated_at", initial_value="2024-01-01", primary_key="id", row_order="desc"
         )
 
         config = pipeline._builder._incremental
@@ -406,15 +386,16 @@ class TestFluentPipelineMethodChaining:
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
         mock_adapter.run_pipeline.return_value = "mock_result"
 
-        result = (FluentPipeline
-            .from_source([1, 2, 3])
+        result = (
+            FluentPipeline.from_source([1, 2, 3])
             .to("duckdb")
             .add_transformer(lambda x: x)
             .with_incremental("updated_at")
             .with_name("test_pipeline")
             .with_dataset("test_dataset")
             .with_options(dev_mode=True)
-            .run(mock_adapter))
+            .run(mock_adapter)
+        )
 
         assert result == "mock_result"
 
@@ -426,12 +407,13 @@ class TestFluentPipelineMethodChaining:
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
         mock_adapter.run_pipeline.return_value = "mock_result"
 
-        result = (FluentPipeline
-            .from_sql_table("postgresql://localhost/db", "users")
+        result = (
+            FluentPipeline.from_sql_table("postgresql://localhost/db", "users")
             .add_transformer(lambda x: x)
             .with_incremental("updated_at")
             .to("duckdb")
-            .run(mock_adapter))
+            .run(mock_adapter)
+        )
 
         assert result == "mock_result"
 
@@ -447,14 +429,17 @@ class TestFluentPipelineIntegration:
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
         mock_adapter.run_pipeline.return_value = {"status": "success"}
 
-        result = (FluentPipeline
-            .from_sql_table("postgresql://localhost/db", "users", schema="public")
+        result = (
+            FluentPipeline.from_sql_table(
+                "postgresql://localhost/db", "users", schema="public"
+            )
             .add_transformer(lambda data: [item for item in data if item["id"] > 0])
             .with_incremental("updated_at", initial_value="2024-01-01")
             .with_name("user_sync")
             .with_dataset("analytics")
             .to("duckdb")
-            .run(mock_adapter))
+            .run(mock_adapter)
+        )
 
         assert result == {"status": "success"}
 
@@ -470,11 +455,12 @@ class TestFluentPipelineIntegration:
         def multiply_two(data):
             return [x * 2 for x in data]
 
-        pipeline = (FluentPipeline
-            .from_source([1, 2, 3])
+        pipeline = (
+            FluentPipeline.from_source([1, 2, 3])
             .add_transformer(add_ten)
             .add_transformer(multiply_two)
-            .to("duckdb"))
+            .to("duckdb")
+        )
 
         pipeline.run(mock_adapter)
 
@@ -494,4 +480,3 @@ class TestFluentPipelineRepr:
 
         assert "FluentPipeline" in repr_str
         assert "builder=" in repr_str
-
