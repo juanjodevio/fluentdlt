@@ -14,6 +14,10 @@ from fldt.types import ConnectionType, DestinationType, SourceType, TransformerF
 
 logger = logging.getLogger(__name__)
 
+_SQL_DATABASE_IMPORT_ERROR = (
+    "dlt sql_database not available. Install with: pip install 'dlt[sql_database]'"
+)
+
 
 class FluentPipeline:
     """Main fluent interface for building and executing data pipelines.
@@ -131,9 +135,7 @@ class FluentPipeline:
             from dlt.sources.sql_database import sql_table
         except ImportError as e:
             from fldt.exceptions import AdapterError
-            raise AdapterError(
-                "dlt sql_database not available. Install with: pip install 'dlt[sql_database]'"
-            ) from e
+            raise AdapterError(_SQL_DATABASE_IMPORT_ERROR) from e
 
         logger.info(
             "Creating pipeline from SQL table",
@@ -188,9 +190,7 @@ class FluentPipeline:
             from dlt.sources.sql_database import sql_database
         except ImportError as e:
             from fldt.exceptions import AdapterError
-            raise AdapterError(
-                "dlt sql_database not available. Install with: pip install 'dlt[sql_database]'"
-            ) from e
+            raise AdapterError(_SQL_DATABASE_IMPORT_ERROR) from e
 
         if not query or not isinstance(query, str):
             from fldt.exceptions import ValidationError
@@ -244,9 +244,7 @@ class FluentPipeline:
             from dlt.sources.sql_database import sql_database
         except ImportError as e:
             from fldt.exceptions import AdapterError
-            raise AdapterError(
-                "dlt sql_database not available. Install with: pip install 'dlt[sql_database]'"
-            ) from e
+            raise AdapterError(_SQL_DATABASE_IMPORT_ERROR) from e
 
         logger.info(
             "Creating pipeline from SQL database",
