@@ -277,13 +277,14 @@ class TestFluentPipelineWithIncremental:
         pipeline = FluentPipeline()
 
         pipeline.with_incremental(
-            "updated_at", initial_value="2024-01-01", primary_key="id"
+            "updated_at", initial_value="2024-01-01", end_value="2024-02-01", primary_key="id"
         )
 
         config = pipeline._builder._incremental
         assert config is not None
         assert config["cursor_field"] == "updated_at"
         assert config["initial_value"] == "2024-01-01"
+        assert config["end_value"] == "2024-02-01"
         assert config["primary_key"] == "id"
 
     def test_with_incremental_validates_params(self) -> None:

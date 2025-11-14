@@ -61,11 +61,13 @@ class TestIncrementalConfig:
         config: IncrementalConfig = {
             "cursor_field": "updated_at",
             "initial_value": "2024-01-01",
+            "end_value": "2024-02-01",
             "primary_key": "id",
             "allow_external_schedulers": True,
         }
         assert config["cursor_field"] == "updated_at"
         assert config["initial_value"] == "2024-01-01"
+        assert config["end_value"] == "2024-02-01"
         assert config["primary_key"] == "id"
         assert config["allow_external_schedulers"] is True
 

@@ -208,6 +208,7 @@ class TestPipelineBuilderSetIncremental:
         builder.set_incremental(
             cursor_field="updated_at",
             initial_value="2024-01-01",
+            end_value="2024-02-01",
             primary_key="id",
         )
 
@@ -215,6 +216,7 @@ class TestPipelineBuilderSetIncremental:
         assert config is not None
         assert config["cursor_field"] == "updated_at"
         assert config["initial_value"] == "2024-01-01"
+        assert config["end_value"] == "2024-02-01"
         assert config["primary_key"] == "id"
 
     def test_set_incremental_with_composite_primary_key(self) -> None:

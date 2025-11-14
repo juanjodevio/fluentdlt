@@ -41,6 +41,7 @@ class IncrementalConfig(TypedDict, total=False):
     Attributes:
         cursor_field: Field name to use for incremental cursor (e.g., 'updated_at').
         initial_value: Starting value for the cursor (optional).
+        end_value: Ending value for bounded backfills (optional).
         primary_key: Primary key field(s) for deduplication (optional).
         allow_external_schedulers: Allow external schedulers to manage state.
     """
@@ -48,6 +49,7 @@ class IncrementalConfig(TypedDict, total=False):
     cursor_field: str
     initial_value: Any
     primary_key: str | list[str] | None
+    end_value: Any
     allow_external_schedulers: bool
 
 

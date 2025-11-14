@@ -316,6 +316,7 @@ class FluentPipeline:
         self,
         cursor_field: str,
         initial_value: Any = None,
+        end_value: Any | None = None,
         primary_key: str | list[str] | None = None,
         **kwargs: Any,
     ) -> "FluentPipeline":
@@ -324,6 +325,7 @@ class FluentPipeline:
         Args:
             cursor_field: Field to use as cursor (e.g., 'updated_at').
             initial_value: Starting value for the cursor.
+            end_value: Optional ending value for bounded backfills.
             primary_key: Primary key field(s) for deduplication.
             **kwargs: Additional incremental loading options.
 
@@ -343,6 +345,7 @@ class FluentPipeline:
         self._builder.set_incremental(
             cursor_field=cursor_field,
             initial_value=initial_value,
+            end_value=end_value,
             primary_key=primary_key,
             **kwargs,
         )

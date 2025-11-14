@@ -127,6 +127,7 @@ class PipelineBuilder:
         self,
         cursor_field: str,
         initial_value: Any = None,
+        end_value: Any | None = None,
         primary_key: str | list[str] | None = None,
         **kwargs: Any,
     ) -> "PipelineBuilder":
@@ -135,6 +136,7 @@ class PipelineBuilder:
         Args:
             cursor_field: Field name to use as cursor (e.g., 'updated_at').
             initial_value: Starting value for the cursor (optional).
+            end_value: Ending value for bounded backfills (optional).
             primary_key: Primary key field(s) for deduplication (optional).
             **kwargs: Additional incremental loading options.
 
@@ -153,6 +155,9 @@ class PipelineBuilder:
 
         if initial_value is not None:
             self._incremental["initial_value"] = initial_value
+
+        if end_value is not None:
+            self._incremental["end_value"] = end_value
 
         if primary_key is not None:
             self._incremental["primary_key"] = primary_key

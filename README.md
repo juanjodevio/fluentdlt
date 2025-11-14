@@ -172,14 +172,14 @@ def uppercase_names(data):
 pipeline.add_transformer(uppercase_names)
 ```
 
-#### `.with_incremental(cursor_field, initial_value=None, primary_key=None)`
+#### `.with_incremental(cursor_field, initial_value=None, end_value=None, primary_key=None)`
 
 Configure incremental loading.
 
 ```python
 .with_incremental("updated_at")
 .with_incremental("id", initial_value=1000)
-.with_incremental("timestamp", primary_key=["user_id", "id"])
+.with_incremental("timestamp", end_value="2024-02-01", primary_key=["user_id", "id"])
 ```
 
 #### `.with_name(name)`
