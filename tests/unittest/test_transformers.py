@@ -24,6 +24,7 @@ class TestTransformerChainInitialization:
 
     def test_initialization_with_transformers(self) -> None:
         """TransformerChain can be initialized with a list of transformers."""
+
         def times_two(x: int) -> int:
             return x * 2
 

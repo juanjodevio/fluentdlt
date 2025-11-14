@@ -380,7 +380,9 @@ class TestDltAdapterIncrementalLoading:
             "allow_external_schedulers": False,
         }
 
-        result = adapter.prepare_source_with_incremental(source, dict(incremental_config))
+        result = adapter.prepare_source_with_incremental(
+            source, dict(incremental_config)
+        )
 
         assert result == mock_incremental
         mock_dlt.sources.incremental.assert_called_once()
@@ -405,7 +407,9 @@ class TestDltAdapterIncrementalLoading:
         source = [{"updated_at": "2024-01-01"}]
         incremental_config: IncrementalConfig = {"cursor_field": "updated_at"}
 
-        result = adapter.prepare_source_with_incremental(source, dict(incremental_config))
+        result = adapter.prepare_source_with_incremental(
+            source, dict(incremental_config)
+        )
 
         assert result == mock_incremental
         call_args = mock_dlt.sources.incremental.call_args[1]
