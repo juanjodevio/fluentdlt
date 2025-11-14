@@ -113,6 +113,8 @@ module = [
     "tests.unittest.test_builder",
     "tests.unittest.test_transformers",
     "tests.unittest.test_executor",
+    "tests.unittest.test_fluent",
+    "tests.unittest.test_adapters",
 ]
 allow_untyped_defs = false
 allow_incomplete_defs = false

@@ -1,5 +1,8 @@
 """Unit tests for fldt.fluent module."""
 
+from __future__ import annotations
+
+from typing import Any, Callable, Iterable
 from unittest.mock import Mock, patch
 
 import pytest
@@ -7,16 +10,18 @@ import pytest
 from fldt.exceptions import AdapterError, PipelineConfigurationError, ValidationError
 from fldt.fluent import FluentPipeline
 
+Transformer = Callable[[Any], Any]
+
 
 class TestFluentPipelineInitialization:
     """Test FluentPipeline initialization."""
 
-    def test_pipeline_initializes_with_new_builder(self):
+    def test_pipeline_initializes_with_new_builder(self) -> None:
         """FluentPipeline initializes with a new builder by default."""
         pipeline = FluentPipeline()
         assert pipeline._builder is not None
 
-    def test_pipeline_initializes_with_provided_builder(self):
+    def test_pipeline_initializes_with_provided_builder(self) -> None:
         """FluentPipeline can be initialized with existing builder."""
         from fldt.builder import PipelineBuilder
 
@@ -30,23 +35,23 @@ class TestFluentPipelineInitialization:
 class TestFluentPipelineFromSource:
     """Test from_source factory method."""
 
-    def test_from_source_with_raw_data(self):
+    def test_from_source_with_raw_data(self) -> None:
         """from_source() creates pipeline from raw data."""
         data = [{"id": 1}, {"id": 2}]
         pipeline = FluentPipeline.from_source(data)
 
         assert pipeline._builder._source is data
 
-    def test_from_source_with_callable(self):
+    def test_from_source_with_callable(self) -> None:
         """from_source() creates pipeline from callable."""
 
-        def data_func():
+        def data_func() -> list[int]:
             return [1, 2, 3]
 
         pipeline = FluentPipeline.from_source(data_func)
         assert pipeline._builder._source is data_func
 
-    def test_from_source_validates_none(self):
+    def test_from_source_validates_none(self) -> None:
         """from_source() raises ValidationError for None."""
         with pytest.raises(ValidationError) as exc_info:
             FluentPipeline.from_source(None)  # type: ignore
@@ -58,7 +63,7 @@ class TestFluentPipelineFromSqlTable:
     """Test from_sql_table factory method."""
 
     @patch("dlt.sources.sql_database.sql_table")
-    def test_from_sql_table_with_minimal_params(self, mock_sql_table):
+    def test_from_sql_table_with_minimal_params(self, mock_sql_table: Mock) -> None:
         """from_sql_table() works with connection and table only."""
         mock_sql_table.return_value = "mock_source"
 
@@ -72,7 +77,7 @@ class TestFluentPipelineFromSqlTable:
         )
 
     @patch("dlt.sources.sql_database.sql_table")
-    def test_from_sql_table_with_schema(self, mock_sql_table):
+    def test_from_sql_table_with_schema(self, mock_sql_table: Mock) -> None:
         """from_sql_table() includes schema when provided."""
         mock_sql_table.return_value = "mock_source"
 
@@ -87,7 +92,7 @@ class TestFluentPipelineFromSqlTable:
         )
 
     @patch("dlt.sources.sql_database.sql_table")
-    def test_from_sql_table_with_kwargs(self, mock_sql_table):
+    def test_from_sql_table_with_kwargs(self, mock_sql_table: Mock) -> None:
         """from_sql_table() passes additional kwargs to dlt."""
         mock_sql_table.return_value = "mock_source"
 
@@ -99,7 +104,7 @@ class TestFluentPipelineFromSqlTable:
         assert call_kwargs["chunk_size"] == 1000
         assert call_kwargs["backend"] == "sqlalchemy"
 
-    def test_from_sql_table_raises_error_if_dlt_not_available(self):
+    def test_from_sql_table_raises_error_if_dlt_not_available(self) -> None:
         """from_sql_table() raises AdapterError if dlt not available."""
         with patch.dict("sys.modules", {"dlt.sources.sql_database": None}):
             with pytest.raises(AdapterError) as exc_info:
@@ -112,7 +117,7 @@ class TestFluentPipelineFromSqlQuery:
     """Test from_sql_query factory method."""
 
     @patch("dlt.sources.sql_database.sql_database")
-    def test_from_sql_query_with_query(self, mock_sql_database):
+    def test_from_sql_query_with_query(self, mock_sql_database: Mock) -> None:
         """from_sql_query() creates pipeline from SQL query."""
         mock_source = Mock()
         mock_source.with_resources.return_value = "mock_source_with_query"
@@ -128,7 +133,7 @@ class TestFluentPipelineFromSqlQuery:
         mock_source.with_resources.assert_called_once_with(query)
 
     @patch("dlt.sources.sql_database.sql_database")
-    def test_from_sql_query_with_kwargs(self, mock_sql_database):
+    def test_from_sql_query_with_kwargs(self, mock_sql_database: Mock) -> None:
         """from_sql_query() passes kwargs to dlt."""
         mock_source = Mock()
         mock_source.with_resources.return_value = "mock_source"
@@ -141,14 +146,14 @@ class TestFluentPipelineFromSqlQuery:
         call_kwargs = mock_sql_database.call_args[1]
         assert call_kwargs["backend"] == "pyodbc"
 
-    def test_from_sql_query_validates_query(self):
+    def test_from_sql_query_validates_query(self) -> None:
         """from_sql_query() validates query is non-empty string."""
         with pytest.raises(ValidationError) as exc_info:
             FluentPipeline.from_sql_query("conn", "")
 
         assert "non-empty string" in str(exc_info.value)
 
-    def test_from_sql_query_raises_error_if_dlt_not_available(self):
+    def test_from_sql_query_raises_error_if_dlt_not_available(self) -> None:
         """from_sql_query() raises AdapterError if dlt not available."""
         with patch.dict("sys.modules", {"dlt.sources.sql_database": None}):
             with pytest.raises(AdapterError) as exc_info:
@@ -161,7 +166,7 @@ class TestFluentPipelineFromSqlDatabase:
     """Test from_sql_database factory method."""
 
     @patch("dlt.sources.sql_database.sql_database")
-    def test_from_sql_database_without_schema(self, mock_sql_database):
+    def test_from_sql_database_without_schema(self, mock_sql_database: Mock) -> None:
         """from_sql_database() creates pipeline for entire database."""
         mock_sql_database.return_value = "mock_source"
 
@@ -174,7 +179,7 @@ class TestFluentPipelineFromSqlDatabase:
         )
 
     @patch("dlt.sources.sql_database.sql_database")
-    def test_from_sql_database_with_schema(self, mock_sql_database):
+    def test_from_sql_database_with_schema(self, mock_sql_database: Mock) -> None:
         """from_sql_database() includes schema when provided."""
         mock_sql_database.return_value = "mock_source"
 
@@ -186,7 +191,7 @@ class TestFluentPipelineFromSqlDatabase:
         )
 
     @patch("dlt.sources.sql_database.sql_database")
-    def test_from_sql_database_with_kwargs(self, mock_sql_database):
+    def test_from_sql_database_with_kwargs(self, mock_sql_database: Mock) -> None:
         """from_sql_database() passes kwargs to dlt."""
         mock_sql_database.return_value = "mock_source"
 
@@ -197,7 +202,7 @@ class TestFluentPipelineFromSqlDatabase:
         call_kwargs = mock_sql_database.call_args[1]
         assert call_kwargs["table_names"] == ["users", "orders"]
 
-    def test_from_sql_database_raises_error_if_dlt_not_available(self):
+    def test_from_sql_database_raises_error_if_dlt_not_available(self) -> None:
         """from_sql_database() raises AdapterError if dlt not available."""
         with patch.dict("sys.modules", {"dlt.sources.sql_database": None}):
             with pytest.raises(AdapterError) as exc_info:
@@ -209,7 +214,7 @@ class TestFluentPipelineFromSqlDatabase:
 class TestFluentPipelineTo:
     """Test to() method for setting destination."""
 
-    def test_to_sets_destination(self):
+    def test_to_sets_destination(self) -> None:
         """to() sets the destination."""
         pipeline = FluentPipeline().from_source([1])
 
@@ -218,7 +223,7 @@ class TestFluentPipelineTo:
         assert result is pipeline  # Returns self
         assert pipeline._builder._destination == "duckdb"
 
-    def test_to_validates_destination(self):
+    def test_to_validates_destination(self) -> None:
         """to() validates destination."""
         pipeline = FluentPipeline()
 
@@ -229,11 +234,11 @@ class TestFluentPipelineTo:
 class TestFluentPipelineAddTransformer:
     """Test add_transformer() method."""
 
-    def test_add_transformer_adds_function(self):
+    def test_add_transformer_adds_function(self) -> None:
         """add_transformer() adds transformation function."""
         pipeline = FluentPipeline()
 
-        def transformer(x):
+        def transformer(x: int) -> int:
             return x * 2
 
         result = pipeline.add_transformer(transformer)
@@ -241,7 +246,7 @@ class TestFluentPipelineAddTransformer:
         assert result is pipeline
         assert transformer in pipeline._builder._transformers
 
-    def test_add_transformer_validates_callable(self):
+    def test_add_transformer_validates_callable(self) -> None:
         """add_transformer() validates transformer is callable."""
         pipeline = FluentPipeline()
 
@@ -252,7 +257,7 @@ class TestFluentPipelineAddTransformer:
 class TestFluentPipelineWithIncremental:
     """Test with_incremental() method."""
 
-    def test_with_incremental_sets_config(self):
+    def test_with_incremental_sets_config(self) -> None:
         """with_incremental() configures incremental loading."""
         pipeline = FluentPipeline()
 
@@ -262,7 +267,7 @@ class TestFluentPipelineWithIncremental:
         assert pipeline._builder._incremental is not None
         assert pipeline._builder._incremental["cursor_field"] == "updated_at"
 
-    def test_with_incremental_with_all_params(self):
+    def test_with_incremental_with_all_params(self) -> None:
         """with_incremental() accepts all parameters."""
         pipeline = FluentPipeline()
 
@@ -276,7 +281,7 @@ class TestFluentPipelineWithIncremental:
         assert config["primary_key"] == "id"
         assert config["row_order"] == "desc"
 
-    def test_with_incremental_validates_params(self):
+    def test_with_incremental_validates_params(self) -> None:
         """with_incremental() validates parameters."""
         pipeline = FluentPipeline()
 
@@ -287,7 +292,7 @@ class TestFluentPipelineWithIncremental:
 class TestFluentPipelineWithName:
     """Test with_name() method."""
 
-    def test_with_name_sets_pipeline_name(self):
+    def test_with_name_sets_pipeline_name(self) -> None:
         """with_name() sets the pipeline name."""
         pipeline = FluentPipeline()
 
@@ -296,7 +301,7 @@ class TestFluentPipelineWithName:
         assert result is pipeline
         assert pipeline._builder._pipeline_name == "my_pipeline"
 
-    def test_with_name_validates_name(self):
+    def test_with_name_validates_name(self) -> None:
         """with_name() validates name."""
         pipeline = FluentPipeline()
 
@@ -307,7 +312,7 @@ class TestFluentPipelineWithName:
 class TestFluentPipelineWithDataset:
     """Test with_dataset() method."""
 
-    def test_with_dataset_sets_dataset_name(self):
+    def test_with_dataset_sets_dataset_name(self) -> None:
         """with_dataset() sets the dataset name."""
         pipeline = FluentPipeline()
 
@@ -316,7 +321,7 @@ class TestFluentPipelineWithDataset:
         assert result is pipeline
         assert pipeline._builder._dataset_name == "my_dataset"
 
-    def test_with_dataset_validates_name(self):
+    def test_with_dataset_validates_name(self) -> None:
         """with_dataset() validates name."""
         pipeline = FluentPipeline()
 
@@ -327,7 +332,7 @@ class TestFluentPipelineWithDataset:
 class TestFluentPipelineWithOptions:
     """Test with_options() method."""
 
-    def test_with_options_sets_options(self):
+    def test_with_options_sets_options(self) -> None:
         """with_options() sets pipeline options."""
         pipeline = FluentPipeline()
 
@@ -341,7 +346,7 @@ class TestFluentPipelineWithOptions:
 class TestFluentPipelineRun:
     """Test run() method."""
 
-    def test_run_builds_and_executes_pipeline(self):
+    def test_run_builds_and_executes_pipeline(self) -> None:
         """run() builds config and executes via executor."""
         mock_adapter = Mock()
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
@@ -354,7 +359,7 @@ class TestFluentPipelineRun:
         mock_adapter.create_pipeline.assert_called_once()
         mock_adapter.run_pipeline.assert_called_once()
 
-    def test_run_uses_default_adapter_if_none_provided(self):
+    def test_run_uses_default_adapter_if_none_provided(self) -> None:
         """run() creates DltAdapter if none provided."""
         with patch("fldt.fluent.DltAdapter") as mock_dlt_adapter_class:
             mock_adapter = Mock()
@@ -368,7 +373,7 @@ class TestFluentPipelineRun:
             mock_dlt_adapter_class.assert_called_once()
             assert result == "mock_result"
 
-    def test_run_requires_source_and_destination(self):
+    def test_run_requires_source_and_destination(self) -> None:
         """run() raises error if configuration is incomplete."""
         pipeline = FluentPipeline.from_source([1])
         # No destination set
@@ -380,7 +385,7 @@ class TestFluentPipelineRun:
 class TestFluentPipelineMethodChaining:
     """Test method chaining functionality."""
 
-    def test_full_method_chain(self):
+    def test_full_method_chain(self) -> None:
         """All methods support chaining."""
         mock_adapter = Mock()
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
@@ -400,7 +405,7 @@ class TestFluentPipelineMethodChaining:
         assert result == "mock_result"
 
     @patch("dlt.sources.sql_database.sql_table")
-    def test_sql_table_method_chain(self, mock_sql_table):
+    def test_sql_table_method_chain(self, mock_sql_table: Mock) -> None:
         """SQL convenience methods support chaining."""
         mock_sql_table.return_value = "mock_source"
         mock_adapter = Mock()
@@ -422,7 +427,7 @@ class TestFluentPipelineIntegration:
     """Test integration scenarios."""
 
     @patch("dlt.sources.sql_database.sql_table")
-    def test_complete_sql_pipeline_workflow(self, mock_sql_table):
+    def test_complete_sql_pipeline_workflow(self, mock_sql_table: Mock) -> None:
         """Complete workflow from SQL table to destination."""
         mock_sql_table.return_value = [{"id": 1}, {"id": 2}]
         mock_adapter = Mock()
@@ -443,16 +448,16 @@ class TestFluentPipelineIntegration:
 
         assert result == {"status": "success"}
 
-    def test_pipeline_with_multiple_transformers(self):
+    def test_pipeline_with_multiple_transformers(self) -> None:
         """Pipeline with multiple transformers applied in sequence."""
         mock_adapter = Mock()
         mock_adapter.create_pipeline.return_value = "mock_pipeline"
         mock_adapter.run_pipeline.return_value = "result"
 
-        def add_ten(data):
+        def add_ten(data: Iterable[int]) -> list[int]:
             return [x + 10 for x in data]
 
-        def multiply_two(data):
+        def multiply_two(data: Iterable[int]) -> list[int]:
             return [x * 2 for x in data]
 
         pipeline = (
@@ -473,7 +478,7 @@ class TestFluentPipelineIntegration:
 class TestFluentPipelineRepr:
     """Test string representation."""
 
-    def test_repr_shows_builder_state(self):
+    def test_repr_shows_builder_state(self) -> None:
         """repr() shows pipeline and builder state."""
         pipeline = FluentPipeline.from_source([1]).to("duckdb")
         repr_str = repr(pipeline)
