@@ -12,7 +12,7 @@ on:
       - main
 
 jobs:
-  tests:
+  unit-tests:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -36,9 +36,32 @@ jobs:
       - name: Run unit tests
         run: uv run pytest tests/unittest
 
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Install integration dependencies
+        run: uv sync --frozen --group integration
+
+      - name: Run integration tests
+        run: uv run pytest tests/integration -m integration
+
   sonarcloud:
     runs-on: ubuntu-latest
-    needs: tests
+    needs: integration-tests
     steps:
       - uses: actions/checkout@v4
 
@@ -54,10 +77,10 @@ jobs:
         run: uv sync --frozen
 
       - name: Run unit tests with coverage
-        run: uv run pytest tests/unittest --cov=src/fldt --cov-report=xml --cov-report=term
+        run: uv run pytest tests/unittest --cov=src/fldt --cov-report=term-missing --cov-report=xml:coverage.xml --cov-branch
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

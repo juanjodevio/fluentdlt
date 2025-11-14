@@ -505,8 +505,8 @@ See [dlt documentation](https://dlthub.com/docs/dlt-ecosystem/destinations) for 
 # Run all unit tests
 pytest tests/unittest
 
-# With coverage
-pytest tests/unittest --cov=src/fldt --cov-report=term-missing
+# With coverage (matches CI)
+pytest tests/unittest --cov=src/fldt --cov-report=term-missing --cov-report=xml:coverage.xml --cov-branch
 
 # Specific test file
 pytest tests/unittest/test_fluent.py -v

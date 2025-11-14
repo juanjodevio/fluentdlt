@@ -6,6 +6,8 @@ validating integration test results.
 
 from datetime import datetime
 
+from pytest import approx
+
 
 class TestData:
     """Container for test data expectations.
@@ -104,7 +106,7 @@ def validate_product_data(loaded_data: list[dict]) -> bool:
     
     # Check product prices
     widget = next(p for p in loaded_data if p.get("name") == "Widget")
-    assert float(widget["price"]) == 25.00
+    assert float(widget["price"]) == approx(25.0)
     
     return True
 

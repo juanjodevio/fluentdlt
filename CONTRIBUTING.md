@@ -184,8 +184,8 @@ logger.info(
 # Run all unit tests
 uv run pytest tests/unittest
 
-# With coverage
-uv run pytest tests/unittest --cov=src/fldt --cov-report=term-missing
+# With coverage (matches CI)
+uv run pytest tests/unittest --cov=src/fldt --cov-report=term-missing --cov-report=xml:coverage.xml --cov-branch
 
 # Specific test file
 uv run pytest tests/unittest/test_fluent.py -v
@@ -301,7 +301,7 @@ Update `sonar.organization` and `sonar.projectKey` after the project is created 
 
 ```bash
 # Run unit tests with XML coverage (matches CI)
-uv run pytest tests/unittest --cov=src/fldt --cov-report=term-missing --cov-report=xml
+uv run pytest tests/unittest --cov=src/fldt --cov-report=term-missing --cov-report=xml:coverage.xml --cov-branch
 
 # Optional: inspect coverage locally
 coverage html
