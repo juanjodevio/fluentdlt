@@ -9,7 +9,7 @@ from types import ModuleType
 from typing import Any
 
 from fldt.exceptions import AdapterError, PipelineExecutionError, ValidationError
-from fldt.types import PipelineConfig
+from fldt.types import IncrementalConfig, PipelineConfig
 
 logger = logging.getLogger(__name__)
 
@@ -212,7 +212,7 @@ class DltAdapter:
     def prepare_source_with_incremental(
         self,
         source: Any,
-        incremental_config: dict[str, Any] | None,
+        incremental_config: IncrementalConfig | None,
     ) -> Any:
         """Prepare a source with incremental loading configuration.
 

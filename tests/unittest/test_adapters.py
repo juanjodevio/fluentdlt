@@ -392,9 +392,8 @@ class TestDltAdapterIncrementalLoading:
             "allow_external_schedulers": False,
         }
 
-        result = adapter.prepare_source_with_incremental(
-            source, dict(incremental_config)
-        )
+        config_copy = cast(IncrementalConfig, dict(incremental_config))
+        result = adapter.prepare_source_with_incremental(source, config_copy)
 
         assert result == mock_wrapped_source
         mock_dlt.sources.incremental.assert_called_once()
@@ -423,9 +422,8 @@ class TestDltAdapterIncrementalLoading:
         source = [{"updated_at": "2024-01-01"}]
         incremental_config: IncrementalConfig = {"cursor_field": "updated_at"}
 
-        result = adapter.prepare_source_with_incremental(
-            source, dict(incremental_config)
-        )
+        config_copy = cast(IncrementalConfig, dict(incremental_config))
+        result = adapter.prepare_source_with_incremental(source, config_copy)
 
         assert result == mock_resource
         call_args = mock_dlt.sources.incremental.call_args[1]
@@ -452,9 +450,10 @@ class TestDltAdapterIncrementalLoading:
 
         source = [{"id": 1}]
         incremental_config: IncrementalConfig = {"cursor_field": "updated_at"}
+        config_copy = cast(IncrementalConfig, dict(incremental_config))
 
         with pytest.raises(AdapterError) as exc_info:
-            adapter.prepare_source_with_incremental(source, dict(incremental_config))
+            adapter.prepare_source_with_incremental(source, config_copy)
 
         assert "Failed to configure incremental loading" in str(exc_info.value)
         assert isinstance(exc_info.value.__cause__, Exception)
