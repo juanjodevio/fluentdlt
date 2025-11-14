@@ -1,5 +1,8 @@
 """Unit tests for fldt.executor module."""
 
+from __future__ import annotations
+
+from typing import Any, Iterable
 from unittest.mock import Mock
 
 import pytest
@@ -12,14 +15,14 @@ from fldt.types import PipelineConfig
 class TestPipelineExecutorInitialization:
     """Test PipelineExecutor initialization."""
 
-    def test_executor_initializes_with_adapter(self):
+    def test_executor_initializes_with_adapter(self) -> None:
         """PipelineExecutor initializes with an adapter."""
         adapter = Mock()
         executor = PipelineExecutor(adapter)
 
         assert executor._adapter is adapter
 
-    def test_executor_rejects_none_adapter(self):
+    def test_executor_rejects_none_adapter(self) -> None:
         """PipelineExecutor raises error for None adapter."""
         with pytest.raises(PipelineConfigurationError) as exc_info:
             PipelineExecutor(None)  # type: ignore
@@ -30,7 +33,7 @@ class TestPipelineExecutorInitialization:
 class TestPipelineExecutorExecute:
     """Test pipeline execution."""
 
-    def test_execute_with_minimal_config(self):
+    def test_execute_with_minimal_config(self) -> None:
         """execute() runs pipeline with minimal configuration."""
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
@@ -53,7 +56,7 @@ class TestPipelineExecutorExecute:
         adapter.create_pipeline.assert_called_once_with(config)
         adapter.run_pipeline.assert_called_once()
 
-    def test_execute_with_transformers(self):
+    def test_execute_with_transformers(self) -> None:
         """execute() applies transformers before running pipeline."""
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
@@ -62,7 +65,7 @@ class TestPipelineExecutorExecute:
         executor = PipelineExecutor(adapter)
 
         # Transformer that doubles values
-        def double(data):
+        def double(data: Iterable[int]) -> list[int]:
             return [item * 2 for item in data]
 
         config: PipelineConfig = {
@@ -82,7 +85,7 @@ class TestPipelineExecutorExecute:
         transformed_source = call_args[0][1]
         assert transformed_source == [2, 4, 6]
 
-    def test_execute_with_multiple_transformers(self):
+    def test_execute_with_multiple_transformers(self) -> None:
         """execute() chains multiple transformers."""
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
@@ -90,10 +93,10 @@ class TestPipelineExecutorExecute:
 
         executor = PipelineExecutor(adapter)
 
-        def add_ten(data):
+        def add_ten(data: Iterable[int]) -> list[int]:
             return [item + 10 for item in data]
 
-        def multiply_two(data):
+        def multiply_two(data: Iterable[int]) -> list[int]:
             return [item * 2 for item in data]
 
         config: PipelineConfig = {
@@ -113,7 +116,7 @@ class TestPipelineExecutorExecute:
         transformed_source = call_args[0][1]
         assert transformed_source == [22, 24, 26]
 
-    def test_execute_without_transformers(self):
+    def test_execute_without_transformers(self) -> None:
         """execute() works without transformers."""
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
@@ -137,7 +140,7 @@ class TestPipelineExecutorExecute:
         source = call_args[0][1]
         assert source == [1, 2, 3]
 
-    def test_execute_calls_adapter_in_correct_order(self):
+    def test_execute_calls_adapter_in_correct_order(self) -> None:
         """execute() calls adapter methods in correct sequence."""
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
@@ -164,7 +167,7 @@ class TestPipelineExecutorExecute:
 class TestPipelineExecutorValidation:
     """Test configuration validation."""
 
-    def test_execute_validates_config_is_dict(self):
+    def test_execute_validates_config_is_dict(self) -> None:
         """execute() raises error if config is not a dict."""
         adapter = Mock()
         executor = PipelineExecutor(adapter)
@@ -174,7 +177,7 @@ class TestPipelineExecutorValidation:
 
         assert "dictionary" in str(exc_info.value)
 
-    def test_execute_validates_source_exists(self):
+    def test_execute_validates_source_exists(self) -> None:
         """execute() raises error if source is missing."""
         adapter = Mock()
         executor = PipelineExecutor(adapter)
@@ -194,7 +197,7 @@ class TestPipelineExecutorValidation:
 
         assert "source" in str(exc_info.value)
 
-    def test_execute_validates_destination_exists(self):
+    def test_execute_validates_destination_exists(self) -> None:
         """execute() raises error if destination is missing."""
         adapter = Mock()
         executor = PipelineExecutor(adapter)
@@ -214,7 +217,7 @@ class TestPipelineExecutorValidation:
 
         assert "destination" in str(exc_info.value)
 
-    def test_execute_validates_transformers_key_exists(self):
+    def test_execute_validates_transformers_key_exists(self) -> None:
         """execute() raises error if transformers key is missing."""
         adapter = Mock()
         executor = PipelineExecutor(adapter)
@@ -234,7 +237,7 @@ class TestPipelineExecutorValidation:
 class TestPipelineExecutorErrorHandling:
     """Test error handling during execution."""
 
-    def test_execute_handles_adapter_create_error(self):
+    def test_execute_handles_adapter_create_error(self) -> None:
         """execute() wraps adapter creation errors."""
         adapter = Mock()
         adapter.create_pipeline.side_effect = RuntimeError("Adapter error")
@@ -256,7 +259,7 @@ class TestPipelineExecutorErrorHandling:
         assert "execution failed" in str(exc_info.value)
         assert isinstance(exc_info.value.__cause__, RuntimeError)
 
-    def test_execute_handles_adapter_run_error(self):
+    def test_execute_handles_adapter_run_error(self) -> None:
         """execute() wraps adapter run errors."""
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
@@ -278,14 +281,14 @@ class TestPipelineExecutorErrorHandling:
 
         assert "execution failed" in str(exc_info.value)
 
-    def test_execute_handles_transformer_error(self):
+    def test_execute_handles_transformer_error(self) -> None:
         """execute() wraps transformation errors."""
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
 
         executor = PipelineExecutor(adapter)
 
-        def failing_transformer(data):
+        def failing_transformer(data: list[int]) -> list[int]:
             raise ValueError("Transformation failed")
 
         config: PipelineConfig = {
@@ -303,7 +306,7 @@ class TestPipelineExecutorErrorHandling:
 
         assert "Transformation failed" in str(exc_info.value)
 
-    def test_execute_preserves_pipeline_execution_errors(self):
+    def test_execute_preserves_pipeline_execution_errors(self) -> None:
         """execute() re-raises PipelineExecutionError without wrapping."""
         adapter = Mock()
         original_error = PipelineExecutionError("Original error")
@@ -330,7 +333,7 @@ class TestPipelineExecutorErrorHandling:
 class TestPipelineExecutorIntegration:
     """Test integration scenarios."""
 
-    def test_execute_with_full_pipeline_config(self):
+    def test_execute_with_full_pipeline_config(self) -> None:
         """execute() handles complete pipeline configuration."""
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
@@ -338,7 +341,7 @@ class TestPipelineExecutorIntegration:
 
         executor = PipelineExecutor(adapter)
 
-        def uppercase_names(data):
+        def uppercase_names(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
             return [{**item, "name": item["name"].upper()} for item in data]
 
         config: PipelineConfig = {
@@ -361,7 +364,7 @@ class TestPipelineExecutorIntegration:
         assert transformed_source[0]["name"] == "ALICE"
         assert transformed_source[1]["name"] == "BOB"
 
-    def test_execute_multiple_times_with_same_executor(self):
+    def test_execute_multiple_times_with_same_executor(self) -> None:
         """Executor can be reused for multiple executions."""
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
@@ -400,7 +403,7 @@ class TestPipelineExecutorIntegration:
 class TestPipelineExecutorRepr:
     """Test string representation."""
 
-    def test_repr_shows_adapter_type(self):
+    def test_repr_shows_adapter_type(self) -> None:
         """repr() shows adapter type."""
         adapter = Mock()
         executor = PipelineExecutor(adapter)

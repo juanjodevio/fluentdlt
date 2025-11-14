@@ -1,5 +1,9 @@
 """Unit tests for fldt.builder module."""
 
+from __future__ import annotations
+
+from typing import Any, Callable, Iterable
+
 import pytest
 
 from fldt.builder import PipelineBuilder
@@ -9,7 +13,7 @@ from fldt.exceptions import PipelineConfigurationError, ValidationError
 class TestPipelineBuilderInitialization:
     """Test PipelineBuilder initialization."""
 
-    def test_builder_initializes_empty(self):
+    def test_builder_initializes_empty(self) -> None:
         """PipelineBuilder initializes with no configuration."""
         builder = PipelineBuilder()
         assert builder._source is None
@@ -21,28 +25,28 @@ class TestPipelineBuilderInitialization:
 class TestPipelineBuilderSetSource:
     """Test setting pipeline source."""
 
-    def test_set_source_with_valid_data(self):
+    def test_set_source_with_valid_data(self) -> None:
         """set_source() accepts valid source data."""
         builder = PipelineBuilder()
-        source = [{"id": 1}, {"id": 2}]
+        source: list[dict[str, int]] = [{"id": 1}, {"id": 2}]
 
         result = builder.set_source(source)
 
         assert result is builder  # Returns self for chaining
         assert builder._source is source
 
-    def test_set_source_with_callable(self):
+    def test_set_source_with_callable(self) -> None:
         """set_source() accepts callable sources."""
         builder = PipelineBuilder()
 
-        def source():
+        def source() -> list[dict[str, int]]:
             return [{"id": 1}]
 
         builder.set_source(source)
 
         assert builder._source is source
 
-    def test_set_source_rejects_none(self):
+    def test_set_source_rejects_none(self) -> None:
         """set_source() raises ValidationError for None."""
         builder = PipelineBuilder()
 
@@ -51,11 +55,11 @@ class TestPipelineBuilderSetSource:
 
         assert "cannot be None" in str(exc_info.value)
 
-    def test_set_source_can_be_updated(self):
+    def test_set_source_can_be_updated(self) -> None:
         """set_source() can be called multiple times."""
         builder = PipelineBuilder()
-        source1 = [1, 2, 3]
-        source2 = [4, 5, 6]
+        source1: list[int] = [1, 2, 3]
+        source2: list[int] = [4, 5, 6]
 
         builder.set_source(source1)
         builder.set_source(source2)
@@ -66,7 +70,7 @@ class TestPipelineBuilderSetSource:
 class TestPipelineBuilderSetDestination:
     """Test setting pipeline destination."""
 
-    def test_set_destination_with_string(self):
+    def test_set_destination_with_string(self) -> None:
         """set_destination() accepts string destination names."""
         builder = PipelineBuilder()
 
@@ -75,7 +79,7 @@ class TestPipelineBuilderSetDestination:
         assert result is builder
         assert builder._destination == "duckdb"
 
-    def test_set_destination_with_object(self):
+    def test_set_destination_with_object(self) -> None:
         """set_destination() accepts destination objects."""
         builder = PipelineBuilder()
         dest_obj = object()
@@ -84,7 +88,7 @@ class TestPipelineBuilderSetDestination:
 
         assert builder._destination is dest_obj
 
-    def test_set_destination_rejects_empty_string(self):
+    def test_set_destination_rejects_empty_string(self) -> None:
         """set_destination() raises ValidationError for empty strings."""
         builder = PipelineBuilder()
 
@@ -93,7 +97,7 @@ class TestPipelineBuilderSetDestination:
 
         assert "cannot be empty" in str(exc_info.value)
 
-    def test_set_destination_rejects_blank_string(self):
+    def test_set_destination_rejects_blank_string(self) -> None:
         """set_destination() raises ValidationError for blank strings."""
         builder = PipelineBuilder()
 
@@ -102,7 +106,7 @@ class TestPipelineBuilderSetDestination:
 
         assert "cannot be blank" in str(exc_info.value)
 
-    def test_set_destination_rejects_none(self):
+    def test_set_destination_rejects_none(self) -> None:
         """set_destination() raises ValidationError for None."""
         builder = PipelineBuilder()
 
@@ -115,11 +119,11 @@ class TestPipelineBuilderSetDestination:
 class TestPipelineBuilderAddTransformer:
     """Test adding transformers to pipeline."""
 
-    def test_add_single_transformer(self):
+    def test_add_single_transformer(self) -> None:
         """add_transformer() adds a transformer to the list."""
         builder = PipelineBuilder()
 
-        def transformer(x):
+        def transformer(x: int) -> int:
             return x * 2
 
         result = builder.add_transformer(transformer)
@@ -128,14 +132,14 @@ class TestPipelineBuilderAddTransformer:
         assert len(builder._transformers) == 1
         assert builder._transformers[0] is transformer
 
-    def test_add_multiple_transformers(self):
+    def test_add_multiple_transformers(self) -> None:
         """add_transformer() can be called multiple times."""
         builder = PipelineBuilder()
 
-        def t1(x):
+        def t1(x: int) -> int:
             return x * 2
 
-        def t2(x):
+        def t2(x: int) -> int:
             return x + 10
 
         builder.add_transformer(t1).add_transformer(t2)
@@ -144,7 +148,7 @@ class TestPipelineBuilderAddTransformer:
         assert builder._transformers[0] is t1
         assert builder._transformers[1] is t2
 
-    def test_add_transformer_validates_callable(self):
+    def test_add_transformer_validates_callable(self) -> None:
         """add_transformer() raises ValidationError if not callable."""
         builder = PipelineBuilder()
 
@@ -154,7 +158,7 @@ class TestPipelineBuilderAddTransformer:
         assert "callable" in str(exc_info.value)
         assert "str" in str(exc_info.value)
 
-    def test_add_transformer_accepts_various_callables(self):
+    def test_add_transformer_accepts_various_callables(self) -> None:
         """add_transformer() accepts different callable types."""
         builder = PipelineBuilder()
 
@@ -162,17 +166,17 @@ class TestPipelineBuilderAddTransformer:
         builder.add_transformer(lambda x: x)
 
         # Function
-        def func(x):
+        def func(x: Any) -> Any:
             return x
 
         builder.add_transformer(func)
 
         # Callable class
-        class Callable:
-            def __call__(self, x):
+        class Passthrough:
+            def __call__(self, x: Any) -> Any:
                 return x
 
-        builder.add_transformer(Callable())
+        builder.add_transformer(Passthrough())
 
         assert len(builder._transformers) == 3
 
@@ -180,7 +184,7 @@ class TestPipelineBuilderAddTransformer:
 class TestPipelineBuilderSetIncremental:
     """Test configuring incremental loading."""
 
-    def test_set_incremental_with_cursor_only(self):
+    def test_set_incremental_with_cursor_only(self) -> None:
         """set_incremental() works with just cursor_field."""
         builder = PipelineBuilder()
 
@@ -191,7 +195,7 @@ class TestPipelineBuilderSetIncremental:
         assert builder._incremental["cursor_field"] == "updated_at"
         assert builder._incremental["row_order"] == "asc"  # default
 
-    def test_set_incremental_with_all_params(self):
+    def test_set_incremental_with_all_params(self) -> None:
         """set_incremental() accepts all parameters."""
         builder = PipelineBuilder()
 
@@ -209,7 +213,7 @@ class TestPipelineBuilderSetIncremental:
         assert config["primary_key"] == "id"
         assert config["row_order"] == "desc"
 
-    def test_set_incremental_with_composite_primary_key(self):
+    def test_set_incremental_with_composite_primary_key(self) -> None:
         """set_incremental() accepts list as primary_key."""
         builder = PipelineBuilder()
 
@@ -217,7 +221,7 @@ class TestPipelineBuilderSetIncremental:
 
         assert builder._incremental["primary_key"] == ["tenant_id", "id"]
 
-    def test_set_incremental_with_kwargs(self):
+    def test_set_incremental_with_kwargs(self) -> None:
         """set_incremental() accepts additional kwargs."""
         builder = PipelineBuilder()
 
@@ -232,7 +236,7 @@ class TestPipelineBuilderSetIncremental:
         assert config["custom_option"] is True
         assert config["another_option"] == "value"
 
-    def test_set_incremental_validates_cursor_field(self):
+    def test_set_incremental_validates_cursor_field(self) -> None:
         """set_incremental() validates cursor_field."""
         builder = PipelineBuilder()
 
@@ -241,7 +245,7 @@ class TestPipelineBuilderSetIncremental:
 
         assert "cursor_field" in str(exc_info.value)
 
-    def test_set_incremental_validates_row_order(self):
+    def test_set_incremental_validates_row_order(self) -> None:
         """set_incremental() validates row_order values."""
         builder = PipelineBuilder()
 
@@ -256,7 +260,7 @@ class TestPipelineBuilderSetIncremental:
 class TestPipelineBuilderSetPipelineName:
     """Test setting pipeline name."""
 
-    def test_set_pipeline_name_with_valid_string(self):
+    def test_set_pipeline_name_with_valid_string(self) -> None:
         """set_pipeline_name() accepts valid string."""
         builder = PipelineBuilder()
 
@@ -265,7 +269,7 @@ class TestPipelineBuilderSetPipelineName:
         assert result is builder
         assert builder._pipeline_name == "my_pipeline"
 
-    def test_set_pipeline_name_rejects_empty_string(self):
+    def test_set_pipeline_name_rejects_empty_string(self) -> None:
         """set_pipeline_name() raises ValidationError for empty string."""
         builder = PipelineBuilder()
 
@@ -274,7 +278,7 @@ class TestPipelineBuilderSetPipelineName:
 
         assert "non-empty string" in str(exc_info.value)
 
-    def test_set_pipeline_name_rejects_blank_string(self):
+    def test_set_pipeline_name_rejects_blank_string(self) -> None:
         """set_pipeline_name() raises ValidationError for blank string."""
         builder = PipelineBuilder()
 
@@ -283,7 +287,7 @@ class TestPipelineBuilderSetPipelineName:
 
         assert "non-empty string" in str(exc_info.value)
 
-    def test_set_pipeline_name_rejects_non_string(self):
+    def test_set_pipeline_name_rejects_non_string(self) -> None:
         """set_pipeline_name() raises ValidationError for non-string."""
         builder = PipelineBuilder()
 
@@ -296,7 +300,7 @@ class TestPipelineBuilderSetPipelineName:
 class TestPipelineBuilderSetDatasetName:
     """Test setting dataset name."""
 
-    def test_set_dataset_name_with_valid_string(self):
+    def test_set_dataset_name_with_valid_string(self) -> None:
         """set_dataset_name() accepts valid string."""
         builder = PipelineBuilder()
 
@@ -305,7 +309,7 @@ class TestPipelineBuilderSetDatasetName:
         assert result is builder
         assert builder._dataset_name == "my_dataset"
 
-    def test_set_dataset_name_rejects_empty_string(self):
+    def test_set_dataset_name_rejects_empty_string(self) -> None:
         """set_dataset_name() raises ValidationError for empty string."""
         builder = PipelineBuilder()
 
@@ -318,7 +322,7 @@ class TestPipelineBuilderSetDatasetName:
 class TestPipelineBuilderSetOptions:
     """Test setting pipeline options."""
 
-    def test_set_option_with_valid_key_value(self):
+    def test_set_option_with_valid_key_value(self) -> None:
         """set_option() adds option to options dict."""
         builder = PipelineBuilder()
 
@@ -327,7 +331,7 @@ class TestPipelineBuilderSetOptions:
         assert result is builder
         assert builder._options["dev_mode"] is True
 
-    def test_set_option_multiple_times(self):
+    def test_set_option_multiple_times(self) -> None:
         """set_option() can be called multiple times."""
         builder = PipelineBuilder()
 
@@ -337,7 +341,7 @@ class TestPipelineBuilderSetOptions:
         assert builder._options["key1"] == "value1"
         assert builder._options["key2"] == "value2"
 
-    def test_set_option_validates_key(self):
+    def test_set_option_validates_key(self) -> None:
         """set_option() validates key is non-empty string."""
         builder = PipelineBuilder()
 
@@ -346,10 +350,10 @@ class TestPipelineBuilderSetOptions:
 
         assert "non-empty string" in str(exc_info.value)
 
-    def test_set_options_with_dict(self):
+    def test_set_options_with_dict(self) -> None:
         """set_options() sets multiple options at once."""
         builder = PipelineBuilder()
-        options = {"key1": "value1", "key2": "value2", "key3": "value3"}
+        options: dict[str, str] = {"key1": "value1", "key2": "value2", "key3": "value3"}
 
         result = builder.set_options(options)
 
@@ -358,7 +362,7 @@ class TestPipelineBuilderSetOptions:
         assert builder._options["key2"] == "value2"
         assert builder._options["key3"] == "value3"
 
-    def test_set_options_validates_dict_type(self):
+    def test_set_options_validates_dict_type(self) -> None:
         """set_options() raises ValidationError if not dict."""
         builder = PipelineBuilder()
 
@@ -371,7 +375,7 @@ class TestPipelineBuilderSetOptions:
 class TestPipelineBuilderBuild:
     """Test building pipeline configuration."""
 
-    def test_build_with_minimal_config(self):
+    def test_build_with_minimal_config(self) -> None:
         """build() creates config with source and destination."""
         builder = PipelineBuilder()
         builder.set_source([1, 2, 3])
@@ -387,12 +391,12 @@ class TestPipelineBuilderBuild:
         assert config["dataset_name"] is None
         assert config["options"] == {}
 
-    def test_build_with_full_config(self):
+    def test_build_with_full_config(self) -> None:
         """build() creates config with all options."""
         builder = PipelineBuilder()
-        source = [1, 2, 3]
+        source: list[int] = [1, 2, 3]
 
-        def transformer(x):
+        def transformer(x: int) -> int:
             return x * 2
 
         builder.set_source(source)
@@ -413,7 +417,7 @@ class TestPipelineBuilderBuild:
         assert config["dataset_name"] == "my_dataset"
         assert config["options"]["dev_mode"] is True
 
-    def test_build_requires_source(self):
+    def test_build_requires_source(self) -> None:
         """build() raises PipelineConfigurationError without source."""
         builder = PipelineBuilder()
         builder.set_destination("duckdb")
@@ -423,7 +427,7 @@ class TestPipelineBuilderBuild:
 
         assert "Source must be set" in str(exc_info.value)
 
-    def test_build_requires_destination(self):
+    def test_build_requires_destination(self) -> None:
         """build() raises PipelineConfigurationError without destination."""
         builder = PipelineBuilder()
         builder.set_source([1, 2, 3])
@@ -433,7 +437,7 @@ class TestPipelineBuilderBuild:
 
         assert "Destination must be set" in str(exc_info.value)
 
-    def test_build_returns_copy_of_transformers(self):
+    def test_build_returns_copy_of_transformers(self) -> None:
         """build() returns copy of transformers list."""
         builder = PipelineBuilder()
         builder.set_source([1])
@@ -446,7 +450,7 @@ class TestPipelineBuilderBuild:
         # Original builder should be unchanged
         assert len(builder._transformers) == 1
 
-    def test_build_returns_copy_of_options(self):
+    def test_build_returns_copy_of_options(self) -> None:
         """build() returns copy of options dict."""
         builder = PipelineBuilder()
         builder.set_source([1])
@@ -463,7 +467,7 @@ class TestPipelineBuilderBuild:
 class TestPipelineBuilderMethodChaining:
     """Test method chaining functionality."""
 
-    def test_full_method_chaining(self):
+    def test_full_method_chaining(self) -> None:
         """All setter methods support chaining."""
         config = (
             PipelineBuilder()
@@ -488,7 +492,7 @@ class TestPipelineBuilderMethodChaining:
 class TestPipelineBuilderRepr:
     """Test string representation."""
 
-    def test_repr_shows_state(self):
+    def test_repr_shows_state(self) -> None:
         """repr() shows builder configuration state."""
         builder = PipelineBuilder()
         repr_empty = repr(builder)
