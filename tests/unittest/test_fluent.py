@@ -53,8 +53,10 @@ class TestFluentPipelineFromSource:
 
     def test_from_source_validates_none(self) -> None:
         """from_source() raises ValidationError for None."""
+        invalid_source: Any = None
+
         with pytest.raises(ValidationError) as exc_info:
-            FluentPipeline.from_source(None)  # type: ignore
+            FluentPipeline.from_source(invalid_source)
 
         assert "cannot be None" in str(exc_info.value)
 
@@ -250,8 +252,10 @@ class TestFluentPipelineAddTransformer:
         """add_transformer() validates transformer is callable."""
         pipeline = FluentPipeline()
 
+        invalid_transformer: Any = "not callable"
+
         with pytest.raises(ValidationError):
-            pipeline.add_transformer("not callable")  # type: ignore
+            pipeline.add_transformer(invalid_transformer)
 
 
 class TestFluentPipelineWithIncremental:
@@ -264,8 +268,9 @@ class TestFluentPipelineWithIncremental:
         result = pipeline.with_incremental("updated_at")
 
         assert result is pipeline
-        assert pipeline._builder._incremental is not None
-        assert pipeline._builder._incremental["cursor_field"] == "updated_at"
+        config = pipeline._builder._incremental
+        assert config is not None
+        assert config["cursor_field"] == "updated_at"
 
     def test_with_incremental_with_all_params(self) -> None:
         """with_incremental() accepts all parameters."""
@@ -276,6 +281,7 @@ class TestFluentPipelineWithIncremental:
         )
 
         config = pipeline._builder._incremental
+        assert config is not None
         assert config["cursor_field"] == "updated_at"
         assert config["initial_value"] == "2024-01-01"
         assert config["primary_key"] == "id"
@@ -459,6 +465,14 @@ class TestFluentPipelineIntegration:
 
         def multiply_two(data: Iterable[int]) -> list[int]:
             return [x * 2 for x in data]
+
+        def apply_chain(source: Iterable[int], transformers: list[Any]) -> list[int]:
+            result = list(source)
+            for transformer in transformers:
+                result = transformer(result)
+            return result
+
+        mock_adapter.apply_transformations.side_effect = apply_chain
 
         pipeline = (
             FluentPipeline.from_source([1, 2, 3])

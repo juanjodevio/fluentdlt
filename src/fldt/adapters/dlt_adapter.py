@@ -132,10 +132,12 @@ class DltAdapter:
             PipelineExecutionError: If pipeline execution fails.
         """
         self._ensure_dlt_loaded()
+        assert self._dlt is not None
+        prepared_source = self._prepare_source_for_pipeline(source)
 
         try:
             logger.info("Starting pipeline execution")
-            result = pipeline.run(source)
+            result = pipeline.run(prepared_source)
             logger.info(
                 "Pipeline execution completed",
                 extra={
@@ -198,6 +200,14 @@ class DltAdapter:
 
         logger.debug("All transformations applied successfully")
         return result
+
+    def _prepare_source_for_pipeline(self, source: Any) -> Any:
+        """Ensure the source is acceptable for dlt pipeline execution."""
+        assert self._dlt is not None
+        if isinstance(source, (list, tuple, dict)):
+            logger.debug("Wrapping raw iterable source into dlt.resource")
+            return self._dlt.resource(source, name="transformed_data")
+        return source
 
     def prepare_source_with_incremental(
         self,

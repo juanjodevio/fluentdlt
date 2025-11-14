@@ -24,13 +24,24 @@ class TestTransformerChainInitialization:
 
     def test_initialization_with_transformers(self) -> None:
         """TransformerChain can be initialized with a list of transformers."""
-        transformers = [lambda x: x * 2, lambda x: x + 1]
+
+        def times_two(x: int) -> int:
+            return x * 2
+
+        def plus_one(x: int) -> int:
+            return x + 1
+
+        transformers: list[Transformer] = [times_two, plus_one]
         chain = TransformerChain(transformers)
         assert len(chain) == 2
 
     def test_initialization_validates_transformers(self) -> None:
         """TransformerChain validates transformers during initialization."""
-        invalid_transformers = [lambda x: x, "not a function", lambda x: x * 2]
+        invalid_transformers: list[Any] = [
+            lambda x: x,
+            "not a function",
+            lambda x: x * 2,
+        ]
 
         with pytest.raises(ValidationError) as exc_info:
             TransformerChain(invalid_transformers)

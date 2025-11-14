@@ -234,12 +234,15 @@ class TestDltAdapterPipelineExecution:
         mock_result = MagicMock()
         mock_result.loads_ids = ["load_1", "load_2"]
         mock_pipeline.run.return_value = mock_result
+        wrapped_source = MagicMock()
+        adapter._dlt.resource.return_value = wrapped_source
 
         source = [{"id": 1}, {"id": 2}]
         result = adapter.run_pipeline(mock_pipeline, source)
 
         assert result == mock_result
-        mock_pipeline.run.assert_called_once_with(source)
+        adapter._dlt.resource.assert_called_once_with(source, name="transformed_data")
+        mock_pipeline.run.assert_called_once_with(wrapped_source)
 
     def test_run_pipeline_handles_execution_errors(self) -> None:
         """run_pipeline raises PipelineExecutionError on failure."""
@@ -248,6 +251,7 @@ class TestDltAdapterPipelineExecution:
 
         mock_pipeline = MagicMock()
         mock_pipeline.run.side_effect = RuntimeError("Execution failed")
+        adapter._dlt.resource.return_value = MagicMock()
 
         source = [{"id": 1}]
 
@@ -303,10 +307,10 @@ class TestDltAdapterTransformations:
         """apply_transformations raises error if transformer not callable."""
         adapter = DltAdapter()
         source = [{"id": 1}]
-        not_callable = "not a function"
+        not_callable: Any = "not a function"
 
         with pytest.raises(PipelineExecutionError) as exc_info:
-            adapter.apply_transformations(source, [not_callable])  # type: ignore
+            adapter.apply_transformations(source, [not_callable])
 
         assert "not callable" in str(exc_info.value)
 
@@ -380,7 +384,9 @@ class TestDltAdapterIncrementalLoading:
             "allow_external_schedulers": False,
         }
 
-        result = adapter.prepare_source_with_incremental(source, incremental_config)
+        result = adapter.prepare_source_with_incremental(
+            source, dict(incremental_config)
+        )
 
         assert result == mock_incremental
         mock_dlt.sources.incremental.assert_called_once()
@@ -405,7 +411,9 @@ class TestDltAdapterIncrementalLoading:
         source = [{"updated_at": "2024-01-01"}]
         incremental_config: IncrementalConfig = {"cursor_field": "updated_at"}
 
-        result = adapter.prepare_source_with_incremental(source, incremental_config)
+        result = adapter.prepare_source_with_incremental(
+            source, dict(incremental_config)
+        )
 
         assert result == mock_incremental
         call_args = mock_dlt.sources.incremental.call_args[1]
@@ -431,7 +439,7 @@ class TestDltAdapterIncrementalLoading:
         incremental_config: IncrementalConfig = {"cursor_field": "updated_at"}
 
         with pytest.raises(AdapterError) as exc_info:
-            adapter.prepare_source_with_incremental(source, incremental_config)
+            adapter.prepare_source_with_incremental(source, dict(incremental_config))
 
         assert "Failed to configure incremental loading" in str(exc_info.value)
         assert isinstance(exc_info.value.__cause__, Exception)

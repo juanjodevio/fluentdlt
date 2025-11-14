@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, cast
 
 import pytest
 
@@ -50,8 +50,10 @@ class TestPipelineBuilderSetSource:
         """set_source() raises ValidationError for None."""
         builder = PipelineBuilder()
 
+        invalid_source: Any = None
+
         with pytest.raises(ValidationError) as exc_info:
-            builder.set_source(None)  # type: ignore
+            builder.set_source(invalid_source)
 
         assert "cannot be None" in str(exc_info.value)
 
@@ -110,8 +112,10 @@ class TestPipelineBuilderSetDestination:
         """set_destination() raises ValidationError for None."""
         builder = PipelineBuilder()
 
+        invalid_destination: Any = None
+
         with pytest.raises(ValidationError) as exc_info:
-            builder.set_destination(None)  # type: ignore
+            builder.set_destination(invalid_destination)
 
         assert "cannot be empty" in str(exc_info.value)
 
@@ -152,8 +156,10 @@ class TestPipelineBuilderAddTransformer:
         """add_transformer() raises ValidationError if not callable."""
         builder = PipelineBuilder()
 
+        not_callable: Any = "not callable"
+
         with pytest.raises(ValidationError) as exc_info:
-            builder.add_transformer("not callable")  # type: ignore
+            builder.add_transformer(not_callable)
 
         assert "callable" in str(exc_info.value)
         assert "str" in str(exc_info.value)
@@ -191,9 +197,10 @@ class TestPipelineBuilderSetIncremental:
         result = builder.set_incremental("updated_at")
 
         assert result is builder
-        assert builder._incremental is not None
-        assert builder._incremental["cursor_field"] == "updated_at"
-        assert builder._incremental["row_order"] == "asc"  # default
+        config = builder._incremental
+        assert config is not None
+        assert config["cursor_field"] == "updated_at"
+        assert config["row_order"] == "asc"  # default
 
     def test_set_incremental_with_all_params(self) -> None:
         """set_incremental() accepts all parameters."""
@@ -219,7 +226,9 @@ class TestPipelineBuilderSetIncremental:
 
         builder.set_incremental("updated_at", primary_key=["tenant_id", "id"])
 
-        assert builder._incremental["primary_key"] == ["tenant_id", "id"]
+        config = builder._incremental
+        assert config is not None
+        assert config["primary_key"] == ["tenant_id", "id"]
 
     def test_set_incremental_with_kwargs(self) -> None:
         """set_incremental() accepts additional kwargs."""
@@ -231,8 +240,8 @@ class TestPipelineBuilderSetIncremental:
             another_option="value",
         )
 
-        config = builder._incremental
-        assert config is not None
+        assert builder._incremental is not None
+        config = cast(dict[str, Any], builder._incremental)
         assert config["custom_option"] is True
         assert config["another_option"] == "value"
 
@@ -291,8 +300,10 @@ class TestPipelineBuilderSetPipelineName:
         """set_pipeline_name() raises ValidationError for non-string."""
         builder = PipelineBuilder()
 
+        invalid_name: Any = 123
+
         with pytest.raises(ValidationError) as exc_info:
-            builder.set_pipeline_name(123)  # type: ignore
+            builder.set_pipeline_name(invalid_name)
 
         assert "non-empty string" in str(exc_info.value)
 
@@ -366,8 +377,10 @@ class TestPipelineBuilderSetOptions:
         """set_options() raises ValidationError if not dict."""
         builder = PipelineBuilder()
 
+        invalid_options: Any = "not a dict"
+
         with pytest.raises(ValidationError) as exc_info:
-            builder.set_options("not a dict")  # type: ignore
+            builder.set_options(invalid_options)
 
         assert "dictionary" in str(exc_info.value)
 
