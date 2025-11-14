@@ -179,20 +179,33 @@ logger.info(
 
 ### Running Tests
 
+**Unit Tests (Fast, Mock-Based):**
 ```bash
-# Run all unit tests (fast, mock-based)
+# Run all unit tests
 uv run pytest tests/unittest
 
-# Run with coverage
+# With coverage
 uv run pytest tests/unittest --cov=src/fldt --cov-report=term-missing
 
-# Run specific test file
+# Specific test file
 uv run pytest tests/unittest/test_fluent.py -v
+```
 
-# Run integration tests (requires dlt[duckdb] installed)
+**Integration Tests (Real Databases):**
+```bash
+# Install integration dependencies
+uv sync --group integration
+
+# Run with SQLite (default, no setup needed)
 uv run pytest tests/integration -m integration
 
-# Run all tests
+# Run with PostgreSQL (optional)
+export TEST_POSTGRES_URL="postgresql://user:pass@localhost/test_db"
+uv run pytest tests/integration -m integration
+```
+
+**All Tests:**
+```bash
 uv run pytest
 ```
 
@@ -221,10 +234,48 @@ class TestFeature:
 
 ### Test Organization
 
+- **Unit tests** (`tests/unittest/`): Mock-based, fast, no external dependencies
+- **Integration tests** (`tests/integration/`): Real databases, Alembic-managed
 - One test class per feature/method
 - Descriptive test names (`test_feature_does_what_when_condition`)
 - Group related tests in classes
 - Use fixtures from `conftest.py` for common setups
+
+### Adding Integration Tests
+
+Integration tests use Alembic migrations for test data:
+
+**1. Create a new migration (if needed):**
+```bash
+cd tests/integration
+alembic revision -m "create_new_table"
+```
+
+**2. Edit the migration file:**
+```python
+def upgrade() -> None:
+    """Create new table and seed data."""
+    op.create_table(
+        'new_table',
+        sa.Column('id', sa.Integer(), primary_key=True),
+        sa.Column('name', sa.String(100)),
+    )
+    op.execute("INSERT INTO new_table (id, name) VALUES (1, 'Test')")
+```
+
+**3. Update `test_data.py` with expected data:**
+```python
+class TestData:
+    NEW_TABLE = [{"id": 1, "name": "Test"}]
+```
+
+**4. Write integration test:**
+```python
+@pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
+def test_new_table(self, test_database, clean_dlt_state):
+    result = FluentPipeline.from_sql_table(test_database, "new_table").to("duckdb").run()
+    assert result is not None
+```
 
 ---
 

@@ -494,17 +494,53 @@ See [dlt documentation](https://dlthub.com/docs/dlt-ecosystem/destinations) for 
 
 ## 🧪 Testing
 
+### Unit Tests (Fast, Mock-Based)
+
 ```bash
-# Run all unit tests (fast, mock-based)
+# Run all unit tests
 pytest tests/unittest
 
-# Run with coverage
+# With coverage
 pytest tests/unittest --cov=src/fldt --cov-report=term-missing
 
-# Run integration tests (requires dlt[duckdb])
-pytest tests/integration -m integration
+# Specific test file
+pytest tests/unittest/test_fluent.py -v
+```
 
-# Run all tests
+### Integration Tests (Real Databases)
+
+Integration tests use Alembic to create test databases with synthetic data.
+
+**Quick Start (SQLite - No Setup Required):**
+```bash
+# Install integration dependencies
+uv sync --group integration
+
+# Run all integration tests
+pytest tests/integration -m integration
+```
+
+**With PostgreSQL (Optional):**
+```bash
+# Set PostgreSQL connection
+export TEST_POSTGRES_URL="postgresql://user:pass@localhost/test_db"
+
+# Run integration tests
+pytest tests/integration -m integration
+```
+
+**Test Database Management:**
+```bash
+# Migrations are automatic, but you can run manually:
+cd tests/integration
+alembic upgrade head    # Create schema and seed data
+alembic downgrade base  # Clean up
+```
+
+### All Tests
+
+```bash
+# Run everything (unit + integration)
 pytest
 ```
 
@@ -535,7 +571,14 @@ fluentdlt/
 │   │   ├── test_types.py
 │   │   ├── test_exceptions.py
 │   │   └── conftest.py       # Shared fixtures
-│   └── integration/          # Integration tests (7 tests, requires dlt setup)
+│   └── integration/          # Integration tests (15 tests, Alembic-managed)
+│       ├── alembic/          # Database migrations
+│       │   ├── versions/     # Migration files (schema + data)
+│       │   ├── env.py        # Alembic environment
+│       │   └── script.py.mako
+│       ├── alembic.ini       # Alembic configuration
+│       ├── conftest.py       # Database fixtures (SQLite + PostgreSQL)
+│       ├── test_data.py      # Test data constants and validators
 │       └── test_integration.py
 ├── pyproject.toml            # Project configuration
 ├── README.md                 # This file
