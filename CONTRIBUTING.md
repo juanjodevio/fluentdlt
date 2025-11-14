@@ -180,17 +180,20 @@ logger.info(
 ### Running Tests
 
 ```bash
-# Run all unit tests
-uv run pytest -m "not integration"
+# Run all unit tests (fast, mock-based)
+uv run pytest tests/unittest
 
 # Run with coverage
-uv run pytest -m "not integration" --cov=src/fldt --cov-report=term-missing
+uv run pytest tests/unittest --cov=src/fldt --cov-report=term-missing
 
 # Run specific test file
-uv run pytest tests/test_fluent.py -v
+uv run pytest tests/unittest/test_fluent.py -v
 
-# Run integration tests (requires dlt setup)
-uv run pytest -m integration
+# Run integration tests (requires dlt[duckdb] installed)
+uv run pytest tests/integration -m integration
+
+# Run all tests
+uv run pytest
 ```
 
 ### Writing Good Tests

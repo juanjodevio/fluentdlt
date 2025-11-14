@@ -1,7 +1,9 @@
 """Integration tests for fldt with actual dlt.
 
 These tests verify the complete pipeline flow with real dlt integration.
-They require dlt[sql_database] to be installed.
+They require dlt[sql_database] and dlt[duckdb] to be installed.
+
+Run with: pytest tests/integration -m integration
 """
 
 import pytest
@@ -9,10 +11,18 @@ import pytest
 # Mark all tests in this module as integration tests
 pytestmark = pytest.mark.integration
 
+# Check if duckdb is available
+try:
+    import duckdb
+    DUCKDB_AVAILABLE = True
+except ImportError:
+    DUCKDB_AVAILABLE = False
+
 
 class TestBasicPipelineIntegration:
     """Test basic pipeline functionality with dlt."""
 
+    @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb: pip install 'dlt[duckdb]'")
     def test_pipeline_from_raw_data_to_duckdb(self):
         """Complete pipeline from raw data to DuckDB."""
         from fldt import FluentPipeline
@@ -36,6 +46,7 @@ class TestBasicPipelineIntegration:
         assert result is not None
         assert hasattr(result, "loads_ids") or hasattr(result, "first_run")
 
+    @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb: pip install 'dlt[duckdb]'")
     def test_pipeline_with_transformations(self):
         """Pipeline with data transformations."""
         from fldt import FluentPipeline

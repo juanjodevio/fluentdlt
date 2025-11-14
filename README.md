@@ -495,14 +495,17 @@ See [dlt documentation](https://dlthub.com/docs/dlt-ecosystem/destinations) for 
 ## 🧪 Testing
 
 ```bash
-# Run unit tests
-pytest tests/
+# Run all unit tests (fast, mock-based)
+pytest tests/unittest
 
 # Run with coverage
-pytest tests/ --cov=src/fldt --cov-report=term-missing
+pytest tests/unittest --cov=src/fldt --cov-report=term-missing
 
-# Run integration tests (requires dlt)
-pytest tests/test_integration.py -m integration
+# Run integration tests (requires dlt[duckdb])
+pytest tests/integration -m integration
+
+# Run all tests
+pytest
 ```
 
 ---
@@ -523,14 +526,17 @@ fluentdlt/
 │       ├── protocol.py       # PipelineAdapter protocol
 │       └── dlt_adapter.py    # DLT implementation
 ├── tests/
-│   ├── test_fluent.py        # FluentPipeline tests
-│   ├── test_builder.py       # Builder tests
-│   ├── test_executor.py      # Executor tests
-│   ├── test_transformers.py  # Transformer tests
-│   ├── test_adapters.py      # Adapter tests
-│   ├── test_types.py         # Type tests
-│   ├── test_exceptions.py    # Exception tests
-│   └── test_integration.py   # Integration tests
+│   ├── unittest/             # Unit tests (189 tests, mock-based)
+│   │   ├── test_fluent.py
+│   │   ├── test_builder.py
+│   │   ├── test_executor.py
+│   │   ├── test_transformers.py
+│   │   ├── test_adapters.py
+│   │   ├── test_types.py
+│   │   ├── test_exceptions.py
+│   │   └── conftest.py       # Shared fixtures
+│   └── integration/          # Integration tests (7 tests, requires dlt setup)
+│       └── test_integration.py
 ├── pyproject.toml            # Project configuration
 ├── README.md                 # This file
 └── LICENSE                   # Apache 2.0 License
