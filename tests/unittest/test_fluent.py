@@ -277,7 +277,10 @@ class TestFluentPipelineWithIncremental:
         pipeline = FluentPipeline()
 
         pipeline.with_incremental(
-            "updated_at", initial_value="2024-01-01", end_value="2024-02-01", primary_key="id"
+            "updated_at",
+            initial_value="2024-01-01",
+            end_value="2024-02-01",
+            primary_key="id",
         )
 
         config = pipeline._builder._incremental
