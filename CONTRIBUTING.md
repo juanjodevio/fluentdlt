@@ -229,17 +229,12 @@ class TestFeature:
 
 ### Formatting
 
-We use **black** and **ruff** for consistent formatting:
+We use **black** for formatting:
 
 ```bash
 # Format code
 uv run black src tests
 
-# Check linting
-uv run ruff check src tests
-
-# Auto-fix linting issues
-uv run ruff check src tests --fix
 ```
 
 ### Import Organization
@@ -460,7 +455,6 @@ What actually happens (include error messages).
 - Python version: 3.11.5
 - OS: Ubuntu 22.04
 - dlt version: 1.5.0
-```
 
 ---
 
@@ -482,10 +476,10 @@ Clear description of the proposed feature.
 Why is this needed? What problem does it solve?
 
 ## Proposed API
-```python
-# How would the feature be used?
-result = FluentPipeline.from_new_source(...).to("duckdb").run()
-```
+    ```python
+    # How would the feature be used?
+    result = FluentPipeline.from_new_source(...).to("duckdb").run()
+    ```
 
 ## Alternatives Considered
 What other approaches were considered?
