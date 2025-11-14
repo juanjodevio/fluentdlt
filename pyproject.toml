@@ -93,44 +93,10 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = ["tests.*"]
+module = ["tests.integration.alembic.*"]
 allow_untyped_defs = true
 allow_incomplete_defs = true
 allow_untyped_calls = true
-disable_error_code = [
-    "index",
-    "call-arg",
-    "arg-type",
-    "type-arg",
-    "typeddict-item",
-    "assignment",
-    "unused-ignore",
-]
-
-[[tool.mypy.overrides]]
-module = [
-    "tests.unittest.test_types",
-    "tests.unittest.test_builder",
-    "tests.unittest.test_transformers",
-    "tests.unittest.test_executor",
-    "tests.unittest.test_fluent",
-    "tests.unittest.test_adapters",
-    "tests.unittest.test_exceptions",
-    "tests.unittest.conftest",
-    "tests.integration.test_data",
-    "tests.integration.conftest",
-]
-allow_untyped_defs = false
-allow_incomplete_defs = false
-allow_untyped_calls = false
-disable_error_code = []
-
-[[tool.mypy.overrides]]
-module = [
-    "tests.integration.alembic.*",
-    "tests.integration.conftest",
-    "tests.integration.test_integration",
-]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
