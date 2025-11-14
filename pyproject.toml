@@ -108,6 +108,13 @@ disable_error_code = [
 ]
 
 [[tool.mypy.overrides]]
+module = ["tests.unittest.test_types"]
+allow_untyped_defs = false
+allow_incomplete_defs = false
+allow_untyped_calls = false
+disable_error_code = []
+
+[[tool.mypy.overrides]]
 module = [
     "tests.integration.alembic.*",
     "tests.integration.conftest",
