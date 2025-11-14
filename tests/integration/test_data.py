@@ -4,9 +4,13 @@ This module provides deterministic test data and helper functions for
 validating integration test results.
 """
 
-from datetime import datetime
+from __future__ import annotations
+
+from typing import Any
 
 from pytest import approx
+
+Record = dict[str, Any]
 
 
 class TestData:
@@ -17,7 +21,7 @@ class TestData:
     """
 
     # Users table data
-    USERS = [
+    USERS: list[Record] = [
         {
             "id": 1,
             "name": "Alice",
@@ -56,7 +60,7 @@ class TestData:
     ]
 
     # Events table data
-    EVENTS = [
+    EVENTS: list[Record] = [
         {"id": 1, "user_id": 1, "event_type": "login"},
         {"id": 2, "user_id": 1, "event_type": "purchase"},
         {"id": 3, "user_id": 2, "event_type": "login"},
@@ -70,7 +74,7 @@ class TestData:
     ]
 
     # Products table data
-    PRODUCTS = [
+    PRODUCTS: list[Record] = [
         {
             "id": 1,
             "name": "Widget",
@@ -89,13 +93,13 @@ class TestData:
     ]
 
     # Counts
-    TOTAL_USERS = len(USERS)
-    TOTAL_EVENTS = len(EVENTS)
-    TOTAL_PRODUCTS = len(PRODUCTS)
-    ACTIVE_USERS = sum(1 for u in USERS if u["is_active"])
+    TOTAL_USERS: int = len(USERS)
+    TOTAL_EVENTS: int = len(EVENTS)
+    TOTAL_PRODUCTS: int = len(PRODUCTS)
+    ACTIVE_USERS: int = sum(1 for u in USERS if u["is_active"])
 
 
-def validate_user_data(loaded_data: list[dict]) -> bool:
+def validate_user_data(loaded_data: list[Record]) -> bool:
     """Validate loaded user data matches expected schema and values.
 
     Args:
@@ -117,7 +121,7 @@ def validate_user_data(loaded_data: list[dict]) -> bool:
     return True
 
 
-def validate_event_data(loaded_data: list[dict]) -> bool:
+def validate_event_data(loaded_data: list[Record]) -> bool:
     """Validate loaded event data matches expected schema and values.
 
     Args:
@@ -139,7 +143,7 @@ def validate_event_data(loaded_data: list[dict]) -> bool:
     return True
 
 
-def validate_product_data(loaded_data: list[dict]) -> bool:
+def validate_product_data(loaded_data: list[Record]) -> bool:
     """Validate loaded product data matches expected schema and values.
 
     Args:

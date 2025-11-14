@@ -1,5 +1,9 @@
 """Unit tests for fldt.exceptions module."""
 
+from __future__ import annotations
+
+from typing import Any, Callable
+
 import pytest
 
 from fldt.exceptions import (
@@ -14,18 +18,18 @@ from fldt.exceptions import (
 class TestExceptionHierarchy:
     """Test exception inheritance and hierarchy."""
 
-    def test_all_exceptions_inherit_from_base(self):
+    def test_all_exceptions_inherit_from_base(self) -> None:
         """All custom exceptions should inherit from FluentDLTError."""
         assert issubclass(ValidationError, FluentDLTError)
         assert issubclass(PipelineConfigurationError, FluentDLTError)
         assert issubclass(PipelineExecutionError, FluentDLTError)
         assert issubclass(AdapterError, FluentDLTError)
 
-    def test_base_exception_inherits_from_exception(self):
+    def test_base_exception_inherits_from_exception(self) -> None:
         """FluentDLTError should inherit from built-in Exception."""
         assert issubclass(FluentDLTError, Exception)
 
-    def test_exception_inheritance_chain(self):
+    def test_exception_inheritance_chain(self) -> None:
         """Verify complete inheritance chain."""
         # ValidationError -> FluentDLTError -> Exception -> BaseException
         assert issubclass(ValidationError, Exception)
@@ -35,13 +39,13 @@ class TestExceptionHierarchy:
 class TestFluentDLTError:
     """Test base FluentDLTError exception."""
 
-    def test_can_raise_and_catch_base_error(self):
+    def test_can_raise_and_catch_base_error(self) -> None:
         """FluentDLTError can be raised and caught."""
         with pytest.raises(FluentDLTError) as exc_info:
             raise FluentDLTError("Test error")
         assert str(exc_info.value) == "Test error"
 
-    def test_can_catch_all_custom_exceptions(self):
+    def test_can_catch_all_custom_exceptions(self) -> None:
         """Catching FluentDLTError catches all package exceptions."""
         exceptions = [
             ValidationError("validation failed"),
@@ -54,7 +58,7 @@ class TestFluentDLTError:
             with pytest.raises(FluentDLTError):
                 raise exc
 
-    def test_base_error_with_no_message(self):
+    def test_base_error_with_no_message(self) -> None:
         """FluentDLTError can be raised without message."""
         with pytest.raises(FluentDLTError):
             raise FluentDLTError()
@@ -63,18 +67,18 @@ class TestFluentDLTError:
 class TestValidationError:
     """Test ValidationError exception."""
 
-    def test_validation_error_with_message(self):
+    def test_validation_error_with_message(self) -> None:
         """ValidationError displays custom message."""
         with pytest.raises(ValidationError) as exc_info:
             raise ValidationError("Invalid source type")
         assert "Invalid source type" in str(exc_info.value)
 
-    def test_validation_error_is_fluent_dlt_error(self):
+    def test_validation_error_is_fluent_dlt_error(self) -> None:
         """ValidationError can be caught as FluentDLTError."""
         with pytest.raises(FluentDLTError):
             raise ValidationError("validation failed")
 
-    def test_validation_error_with_formatted_message(self):
+    def test_validation_error_with_formatted_message(self) -> None:
         """ValidationError supports formatted messages."""
         invalid_type = int
         with pytest.raises(ValidationError) as exc_info:
@@ -85,13 +89,13 @@ class TestValidationError:
 class TestPipelineConfigurationError:
     """Test PipelineConfigurationError exception."""
 
-    def test_configuration_error_with_message(self):
+    def test_configuration_error_with_message(self) -> None:
         """PipelineConfigurationError displays custom message."""
         with pytest.raises(PipelineConfigurationError) as exc_info:
             raise PipelineConfigurationError("Missing destination")
         assert "Missing destination" in str(exc_info.value)
 
-    def test_configuration_error_is_fluent_dlt_error(self):
+    def test_configuration_error_is_fluent_dlt_error(self) -> None:
         """PipelineConfigurationError can be caught as FluentDLTError."""
         with pytest.raises(FluentDLTError):
             raise PipelineConfigurationError("config error")
@@ -100,13 +104,13 @@ class TestPipelineConfigurationError:
 class TestPipelineExecutionError:
     """Test PipelineExecutionError exception."""
 
-    def test_execution_error_with_message(self):
+    def test_execution_error_with_message(self) -> None:
         """PipelineExecutionError displays custom message."""
         with pytest.raises(PipelineExecutionError) as exc_info:
             raise PipelineExecutionError("Pipeline failed")
         assert "Pipeline failed" in str(exc_info.value)
 
-    def test_execution_error_with_cause(self):
+    def test_execution_error_with_cause(self) -> None:
         """PipelineExecutionError can chain original exception."""
         original = ValueError("Invalid value")
         try:
@@ -115,7 +119,7 @@ class TestPipelineExecutionError:
             assert exc.__cause__ is original
             assert isinstance(exc.__cause__, ValueError)
 
-    def test_execution_error_is_fluent_dlt_error(self):
+    def test_execution_error_is_fluent_dlt_error(self) -> None:
         """PipelineExecutionError can be caught as FluentDLTError."""
         with pytest.raises(FluentDLTError):
             raise PipelineExecutionError("execution failed")
@@ -124,13 +128,13 @@ class TestPipelineExecutionError:
 class TestAdapterError:
     """Test AdapterError exception."""
 
-    def test_adapter_error_with_message(self):
+    def test_adapter_error_with_message(self) -> None:
         """AdapterError displays custom message."""
         with pytest.raises(AdapterError) as exc_info:
             raise AdapterError("DLT adapter initialization failed")
         assert "DLT adapter" in str(exc_info.value)
 
-    def test_adapter_error_with_cause(self):
+    def test_adapter_error_with_cause(self) -> None:
         """AdapterError can chain original exception."""
         original = ImportError("dlt not installed")
         try:
@@ -139,7 +143,7 @@ class TestAdapterError:
             assert exc.__cause__ is original
             assert isinstance(exc.__cause__, ImportError)
 
-    def test_adapter_error_is_fluent_dlt_error(self):
+    def test_adapter_error_is_fluent_dlt_error(self) -> None:
         """AdapterError can be caught as FluentDLTError."""
         with pytest.raises(FluentDLTError):
             raise AdapterError("adapter failed")
@@ -148,10 +152,10 @@ class TestAdapterError:
 class TestExceptionUsagePatterns:
     """Test common exception usage patterns."""
 
-    def test_catch_specific_then_base(self):
+    def test_catch_specific_then_base(self) -> None:
         """Can catch specific exception types before base."""
 
-        def risky_operation(fail_type):
+        def risky_operation(fail_type: str) -> None:
             if fail_type == "validation":
                 raise ValidationError("Bad input")
             elif fail_type == "execution":
@@ -171,7 +175,7 @@ class TestExceptionUsagePatterns:
         with pytest.raises(FluentDLTError):
             risky_operation("other")
 
-    def test_exception_chaining_with_context(self):
+    def test_exception_chaining_with_context(self) -> None:
         """Exceptions can be chained to preserve context."""
         try:
             try:
@@ -183,7 +187,7 @@ class TestExceptionUsagePatterns:
             assert isinstance(exc.__cause__, ValueError)
             assert "Original problem" in str(exc.__cause__)
 
-    def test_multiple_exception_handling(self):
+    def test_multiple_exception_handling(self) -> None:
         """Can handle multiple exception types in one block."""
         errors_caught = []
 

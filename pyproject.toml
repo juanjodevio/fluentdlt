@@ -115,6 +115,10 @@ module = [
     "tests.unittest.test_executor",
     "tests.unittest.test_fluent",
     "tests.unittest.test_adapters",
+    "tests.unittest.test_exceptions",
+    "tests.unittest.conftest",
+    "tests.integration.test_data",
+    "tests.integration.conftest",
 ]
 allow_untyped_defs = false
 allow_incomplete_defs = false

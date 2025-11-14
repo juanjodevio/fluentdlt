@@ -4,18 +4,22 @@ This module provides database fixtures that set up test databases using Alembic
 migrations. Supports both SQLite (default, fast) and PostgreSQL (optional).
 """
 
+from __future__ import annotations
+
 import os
 import shutil
 import tempfile
 from pathlib import Path
+from typing import Iterator
 
 import pytest
+from _pytest.monkeypatch import MonkeyPatch
 from alembic import command
 from alembic.config import Config
 
 
 @pytest.fixture(scope="session")
-def alembic_config():
+def alembic_config() -> Config:
     """Get Alembic configuration object.
 
     Returns Alembic Config pointing to integration test migrations.
@@ -34,7 +38,7 @@ def alembic_config():
 
 
 @pytest.fixture(scope="session")
-def sqlite_database(alembic_config):
+def sqlite_database(alembic_config: Config) -> Iterator[str]:
     """Create SQLite test database with migrations.
 
     This fixture creates a temporary SQLite database, runs all Alembic
@@ -73,7 +77,7 @@ def sqlite_database(alembic_config):
 
 
 @pytest.fixture(scope="session")
-def postgres_database(alembic_config):
+def postgres_database(alembic_config: Config) -> Iterator[str]:
     """Create PostgreSQL test database with migrations.
 
     This fixture creates a PostgreSQL test database (if available), runs
@@ -93,12 +97,12 @@ def postgres_database(alembic_config):
 
     # Try to connect to PostgreSQL
     try:
-        from sqlalchemy import create_engine
+        from sqlalchemy import create_engine, text
 
         # Test connection
         engine = create_engine(postgres_url)
         with engine.connect() as conn:
-            conn.execute("SELECT 1")  # type: ignore
+            conn.execute(text("SELECT 1"))
         engine.dispose()
 
     except Exception as e:
@@ -121,7 +125,7 @@ def postgres_database(alembic_config):
 
 
 @pytest.fixture(scope="session")
-def test_database(sqlite_database):
+def test_database(sqlite_database: str) -> str:
     """Get default test database (SQLite).
 
     This is the default database fixture that most tests should use.
@@ -134,7 +138,7 @@ def test_database(sqlite_database):
 
 
 @pytest.fixture(scope="session")
-def test_dbs_dir():
+def test_dbs_dir() -> Iterator[Path]:
     """Create and provide path to test databases directory.
 
     Creates tests/.test_dbs/ directory for storing DuckDB files during tests.
@@ -165,7 +169,7 @@ def test_dbs_dir():
 
 
 @pytest.fixture(autouse=True)
-def clean_dlt_state(test_dbs_dir, monkeypatch):
+def clean_dlt_state(test_dbs_dir: Path, monkeypatch: MonkeyPatch) -> Iterator[None]:
     """Clean dlt state directory and set working directory for DuckDB files.
 
     This ensures each test starts with a clean slate for incremental
@@ -204,13 +208,13 @@ def clean_dlt_state(test_dbs_dir, monkeypatch):
 try:
     import duckdb
 
-    DUCKDB_AVAILABLE = True
+    DUCKDB_AVAILABLE: bool = True
 except ImportError:
     DUCKDB_AVAILABLE = False
 
 try:
     import psycopg2
 
-    POSTGRES_DRIVER_AVAILABLE = True
+    POSTGRES_DRIVER_AVAILABLE: bool = True
 except ImportError:
     POSTGRES_DRIVER_AVAILABLE = False
