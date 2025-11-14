@@ -27,6 +27,7 @@ class TestSQLTableLoading:
         result = (FluentPipeline
             .from_sql_table(test_database, "users")
             .to("duckdb")
+            .with_name("test_load_single_table")
             .with_dataset("test_users")
             .run())
         
@@ -43,6 +44,7 @@ class TestSQLTableLoading:
         result = (FluentPipeline
             .from_sql_table(test_database, "events", schema=None)
             .to("duckdb")
+            .with_name("test_load_table_with_schema")
             .with_dataset("test_events")
             .run())
         
@@ -78,6 +80,7 @@ class TestSQLDatabaseLoading:
         result = (FluentPipeline
             .from_sql_database(test_database)
             .to("duckdb")
+            .with_name("test_load_entire_database")
             .with_dataset("test_full_db")
             .run())
         
@@ -142,6 +145,7 @@ class TestTransformations:
             .from_sql_table(test_database, "users")
             .add_transformer(uppercase_names)
             .to("duckdb")
+            .with_name("test_single_transformation")
             .with_dataset("test_transformed")
             .run())
         
@@ -166,6 +170,7 @@ class TestTransformations:
             .from_sql_table(test_database, "users")
             .add_transformer(add_full_name_field)
             .to("duckdb")
+            .with_name("test_chained_transformations")
             .with_dataset("test_chained")
             .run())
         
@@ -184,6 +189,7 @@ class TestWriteDispositions:
         result = (FluentPipeline
             .from_sql_table(test_database, "products")
             .to("duckdb")
+            .with_name("test_write_disposition_append")
             .with_dataset("test_append")
             .run())
         
@@ -208,6 +214,7 @@ class TestDatabaseCompatibility:
         result = (FluentPipeline
             .from_sql_table(sqlite_database, "users")
             .to("duckdb")
+            .with_name("test_sqlite_database")
             .with_dataset("test_sqlite")
             .run())
         
@@ -224,6 +231,7 @@ class TestDatabaseCompatibility:
         result = (FluentPipeline
             .from_sql_table(postgres_database, "users")
             .to("duckdb")
+            .with_name("test_postgresql_database")
             .with_dataset("test_postgres")
             .run())
         
@@ -272,4 +280,5 @@ class TestErrorHandling:
             (FluentPipeline
                 .from_sql_table(test_database, "nonexistent_table")
                 .to("duckdb")
+                .with_name("test_pipeline_fails_with_invalid_table")
                 .run())

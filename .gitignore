@@ -206,3 +206,12 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 .cursor/plans/fluentdlt-core-development-bb3952cc.plan.md
+
+# Test databases
+# DuckDB test files created during integration tests
+tests/.test_dbs/
+*.duckdb
+*.duckdb.wal
+
+# DLT state files
+.dlt/

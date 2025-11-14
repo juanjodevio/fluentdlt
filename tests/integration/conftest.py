@@ -130,23 +130,69 @@ def test_database(sqlite_database):
     return sqlite_database
 
 
-@pytest.fixture
-def clean_dlt_state():
-    """Clean dlt state directory before each test.
+@pytest.fixture(scope="session")
+def test_dbs_dir():
+    """Create and provide path to test databases directory.
+    
+    Creates tests/.test_dbs/ directory for storing DuckDB files during tests.
+    This keeps all test database files in one place and persists them
+    for inspection. Files are cleaned up before each test run.
+    
+    Yields:
+        Path: Path to the test databases directory.
+    """
+    tests_dir = Path(__file__).parent.parent  # Go up to tests/
+    dbs_dir = tests_dir / ".test_dbs"
+    
+    # Clean directory if it exists from previous run
+    if dbs_dir.exists():
+        try:
+            shutil.rmtree(dbs_dir)
+        except Exception:
+            pass  # Best effort cleanup
+    
+    # Create fresh directory
+    dbs_dir.mkdir(exist_ok=True)
+    
+    yield dbs_dir
+    
+    # Don't cleanup after tests - leave files for inspection
+    # The directory will be cleaned on the next test run
+    # and is gitignored anyway
+
+
+@pytest.fixture(autouse=True)
+def clean_dlt_state(test_dbs_dir, monkeypatch):
+    """Clean dlt state directory and set working directory for DuckDB files.
     
     This ensures each test starts with a clean slate for incremental
-    loading state management.
+    loading state management. Changes working directory to tests/.test_dbs/
+    so all DuckDB files are created there.
+    
+    Note: autouse=True ensures this runs for all tests automatically.
     """
     state_dir = Path(".dlt")
     
+    # Change to test databases directory BEFORE test starts
+    # This ensures DuckDB files are created in the right place
+    original_dir = os.getcwd()
+    os.chdir(test_dbs_dir)
+    
+    # Configure DuckDB path via environment variable as backup
+    monkeypatch.setenv("DESTINATION__DUCKDB__CREDENTIALS", str(test_dbs_dir / "test.duckdb"))
+    
     yield
     
-    # Cleanup: remove test state directories
-    if state_dir.exists():
-        try:
-            shutil.rmtree(state_dir)
-        except Exception:
-            pass  # Best effort cleanup
+    # Return to original directory
+    os.chdir(original_dir)
+    
+    # Cleanup: remove test state directories from both locations
+    for check_dir in [state_dir, test_dbs_dir / ".dlt"]:
+        if check_dir.exists():
+            try:
+                shutil.rmtree(check_dir)
+            except Exception:
+                pass  # Best effort cleanup
 
 
 # Check for optional dependencies

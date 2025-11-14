@@ -241,6 +241,12 @@ class TestFeature:
 - Group related tests in classes
 - Use fixtures from `conftest.py` for common setups
 
+**Test Databases:**
+- DuckDB files from integration tests are stored in `tests/.test_dbs/`
+- This directory is gitignored and cleaned before each test run
+- All test pipelines write to a single `test.duckdb` file (efficient!)
+- SQLite test databases are created in temporary files and cleaned up automatically
+
 ### Adding Integration Tests
 
 Integration tests use Alembic migrations for test data:
