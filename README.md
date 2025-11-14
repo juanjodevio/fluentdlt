@@ -358,6 +358,79 @@ result = (FluentPipeline
 
 FluentDLT follows SOLID principles with clean separation of concerns:
 
+### Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         User Code                                │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      FluentPipeline                              │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  Factory Methods:                                        │   │
+│  │  • from_source()        • from_sql_query()              │   │
+│  │  • from_sql_table()     • from_sql_database()           │   │
+│  │                                                          │   │
+│  │  Fluent API:                                            │   │
+│  │  • to()                 • with_name()                   │   │
+│  │  • add_transformer()    • with_dataset()                │   │
+│  │  • with_incremental()   • with_options()                │   │
+│  │  • run()                                                │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │ delegates to
+                            ▼
+        ┌───────────────────────────────────────┐
+        │      PipelineBuilder                   │
+        │  • Validates configuration            │
+        │  • Constructs PipelineConfig          │
+        │  • Returns immutable config           │
+        └───────────────────┬───────────────────┘
+                            │ config
+                            ▼
+        ┌───────────────────────────────────────┐
+        │     PipelineExecutor                   │
+        │  • Orchestrates execution             │
+        │  • Applies transformations            │
+        │  • Manages pipeline lifecycle         │
+        └───────────────────┬───────────────────┘
+                            │ uses
+                            ▼
+        ┌───────────────────────────────────────┐
+        │    PipelineAdapter (Protocol)          │
+        │  • create_pipeline()                  │
+        │  • run_pipeline()                     │
+        │  • apply_transformations()            │
+        └───────────────────┬───────────────────┘
+                            │ implements
+                            ▼
+        ┌───────────────────────────────────────┐
+        │         DltAdapter                     │
+        │  • Lazy-loads dlt modules             │
+        │  • Translates to dlt API              │
+        │  • Handles dlt-specific logic         │
+        └───────────────────┬───────────────────┘
+                            │ calls
+                            ▼
+        ┌───────────────────────────────────────┐
+        │          dlt (data load tool)          │
+        │  • Pipeline creation                  │
+        │  • Data extraction                    │
+        │  • Transformation execution           │
+        │  • Destination loading                │
+        └───────────────────────────────────────┘
+
+Supporting Components:
+┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐
+│  TransformerChain    │  │  Type System         │  │  Exceptions          │
+│  • Sequential apply  │  │  • SourceType        │  │  • ValidationError   │
+│  • Error handling    │  │  • DestinationType   │  │  • ConfigError       │
+│  • Composition       │  │  • PipelineConfig    │  │  • ExecutionError    │
+└──────────────────────┘  └──────────────────────┘  └──────────────────────┘
+```
+
 ### Components
 
 - **FluentPipeline** - Main user-facing API with fluent interface
