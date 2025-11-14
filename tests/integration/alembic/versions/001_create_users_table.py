@@ -1,7 +1,7 @@
 """create users table
 
 Revision ID: 001
-Revises: 
+Revises:
 Create Date: 2025-11-14
 
 """
@@ -33,7 +33,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    
+
     # Create index on updated_at for incremental loading performance
     op.create_index("idx_users_updated_at", "users", ["updated_at"])
 
@@ -42,4 +42,3 @@ def downgrade() -> None:
     """Drop users table."""
     op.drop_index("idx_users_updated_at", table_name="users")
     op.drop_table("users")
-

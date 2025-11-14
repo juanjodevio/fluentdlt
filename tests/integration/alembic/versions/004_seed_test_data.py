@@ -17,7 +17,7 @@ depends_on = None
 
 def upgrade() -> None:
     """Insert synthetic test data into all tables."""
-    
+
     # Insert users (5 users with sequential IDs and dates)
     op.execute(
         """
@@ -29,7 +29,7 @@ def upgrade() -> None:
         (5, 'Eve', 'eve@example.com', 29, 1, '2024-01-05 10:00:00')
         """
     )
-    
+
     # Insert events (10 events with various types and timestamps)
     op.execute(
         """
@@ -46,7 +46,7 @@ def upgrade() -> None:
         (10, 5, 'logout', NULL, '2024-01-05 18:00:00')
         """
     )
-    
+
     # Insert products (3 products in different categories)
     op.execute(
         """
@@ -63,4 +63,3 @@ def downgrade() -> None:
     op.execute("DELETE FROM events")
     op.execute("DELETE FROM products")
     op.execute("DELETE FROM users")
-

@@ -73,4 +73,3 @@ class PipelineConfig(TypedDict, total=False):
     pipeline_name: str | None
     dataset_name: str | None
     options: dict[str, Any]
-

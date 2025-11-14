@@ -34,6 +34,7 @@ class TestPipelineBuilderSetSource:
     def test_set_source_with_callable(self):
         """set_source() accepts callable sources."""
         builder = PipelineBuilder()
+
         def source():
             return [{"id": 1}]
 
@@ -117,6 +118,7 @@ class TestPipelineBuilderAddTransformer:
     def test_add_single_transformer(self):
         """add_transformer() adds a transformer to the list."""
         builder = PipelineBuilder()
+
         def transformer(x):
             return x * 2
 
@@ -129,8 +131,10 @@ class TestPipelineBuilderAddTransformer:
     def test_add_multiple_transformers(self):
         """add_transformer() can be called multiple times."""
         builder = PipelineBuilder()
+
         def t1(x):
             return x * 2
+
         def t2(x):
             return x + 10
 
@@ -160,12 +164,14 @@ class TestPipelineBuilderAddTransformer:
         # Function
         def func(x):
             return x
+
         builder.add_transformer(func)
 
         # Callable class
         class Callable:
             def __call__(self, x):
                 return x
+
         builder.add_transformer(Callable())
 
         assert len(builder._transformers) == 3
@@ -385,6 +391,7 @@ class TestPipelineBuilderBuild:
         """build() creates config with all options."""
         builder = PipelineBuilder()
         source = [1, 2, 3]
+
         def transformer(x):
             return x * 2
 
@@ -498,4 +505,3 @@ class TestPipelineBuilderRepr:
         assert "source=set" in repr_filled
         assert "destination=set" in repr_filled
         assert "transformers=1" in repr_filled
-

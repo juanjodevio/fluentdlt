@@ -197,4 +197,3 @@ class TestExceptionUsagePatterns:
         assert ValidationError in errors_caught
         assert PipelineConfigurationError in errors_caught
         assert AdapterError in errors_caught
-

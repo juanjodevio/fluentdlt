@@ -165,4 +165,3 @@ class PipelineExecutor:
     def __repr__(self) -> str:
         """Return string representation of the executor."""
         return f"PipelineExecutor(adapter={type(self._adapter).__name__})"
-

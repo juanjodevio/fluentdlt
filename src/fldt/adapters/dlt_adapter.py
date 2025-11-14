@@ -139,7 +139,9 @@ class DltAdapter:
             logger.info(
                 "Pipeline execution completed",
                 extra={
-                    "loads": len(result.loads_ids) if hasattr(result, "loads_ids") else 0,
+                    "loads": (
+                        len(result.loads_ids) if hasattr(result, "loads_ids") else 0
+                    ),
                 },
             )
             return result
@@ -257,4 +259,3 @@ class DltAdapter:
                 "Failed to configure incremental loading", extra={"error": str(e)}
             )
             raise AdapterError(f"Failed to configure incremental loading: {e}") from e
-

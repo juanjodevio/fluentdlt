@@ -10,7 +10,12 @@ Run with: pytest tests/integration
 import pytest
 
 from .conftest import DUCKDB_AVAILABLE, POSTGRES_DRIVER_AVAILABLE
-from .test_data import TestData, validate_event_data, validate_product_data, validate_user_data
+from .test_data import (
+    TestData,
+    validate_event_data,
+    validate_product_data,
+    validate_user_data,
+)
 
 # Mark all tests in this module as integration tests
 pytestmark = pytest.mark.integration
@@ -18,49 +23,51 @@ pytestmark = pytest.mark.integration
 
 class TestSQLTableLoading:
     """Test loading from SQL tables with real databases."""
-    
+
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_load_single_table(self, test_database, clean_dlt_state):
         """Load single SQL table to DuckDB."""
         from fldt import FluentPipeline
-        
-        result = (FluentPipeline
-            .from_sql_table(test_database, "users")
+
+        result = (
+            FluentPipeline.from_sql_table(test_database, "users")
             .to("duckdb")
             .with_name("test_load_single_table")
             .with_dataset("test_users")
-            .run())
-        
+            .run()
+        )
+
         # Verify result structure
         assert result is not None
         assert hasattr(result, "loads_ids") or hasattr(result, "first_run")
-    
+
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_load_table_with_schema(self, test_database, clean_dlt_state):
         """Load SQL table from specific schema."""
         from fldt import FluentPipeline
-        
+
         # SQLite doesn't have schemas, but test the parameter handling
-        result = (FluentPipeline
-            .from_sql_table(test_database, "events", schema=None)
+        result = (
+            FluentPipeline.from_sql_table(test_database, "events", schema=None)
             .to("duckdb")
             .with_name("test_load_table_with_schema")
             .with_dataset("test_events")
-            .run())
-        
+            .run()
+        )
+
         assert result is not None
 
 
 class TestSQLQueryExecution:
     """Test loading from custom SQL queries."""
-    
+
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_load_from_custom_query(self, test_database, clean_dlt_state):
         """Load data from custom SQL query."""
         # Note: SQL queries with dlt require using sql_table with WHERE clause
         # or creating custom sources. Skipping for now.
         pytest.skip("Custom SQL queries require advanced dlt configuration")
-    
+
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_load_with_join_query(self, test_database, clean_dlt_state):
         """Test joining tables via SQL database source."""
@@ -71,91 +78,95 @@ class TestSQLQueryExecution:
 
 class TestSQLDatabaseLoading:
     """Test loading entire databases."""
-    
+
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_load_entire_database(self, test_database, clean_dlt_state):
         """Load all tables from database."""
         from fldt import FluentPipeline
-        
-        result = (FluentPipeline
-            .from_sql_database(test_database)
+
+        result = (
+            FluentPipeline.from_sql_database(test_database)
             .to("duckdb")
             .with_name("test_load_entire_database")
             .with_dataset("test_full_db")
-            .run())
-        
+            .run()
+        )
+
         assert result is not None
 
 
 class TestIncrementalLoading:
     """Test incremental loading with cursor fields."""
-    
+
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_incremental_with_cursor_field(self, test_database, clean_dlt_state):
         """Test incremental loading with updated_at cursor."""
         from fldt import FluentPipeline
-        
+
         # First load - should get all users
-        result1 = (FluentPipeline
-            .from_sql_table(test_database, "users")
+        result1 = (
+            FluentPipeline.from_sql_table(test_database, "users")
             .with_incremental("updated_at", initial_value="2024-01-01 00:00:00")
             .to("duckdb")
             .with_name("incremental_users")
             .with_dataset("test_incremental")
-            .run())
-        
+            .run()
+        )
+
         assert result1 is not None
-    
+
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_incremental_with_primary_key(self, test_database, clean_dlt_state):
         """Test incremental loading with primary key for deduplication."""
         from fldt import FluentPipeline
-        
-        result = (FluentPipeline
-            .from_sql_table(test_database, "events")
+
+        result = (
+            FluentPipeline.from_sql_table(test_database, "events")
             .with_incremental(
                 cursor_field="created_at",
                 initial_value="2024-01-03 00:00:00",
-                primary_key="id"
+                primary_key="id",
             )
             .to("duckdb")
             .with_name("incremental_events")
             .with_dataset("test_incremental_pk")
-            .run())
-        
+            .run()
+        )
+
         assert result is not None
 
 
 class TestTransformations:
     """Test data transformations in pipelines."""
-    
+
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_single_transformation(self, test_database, clean_dlt_state):
         """Test pipeline with single transformation."""
         from fldt import FluentPipeline
-        
+
         def uppercase_names(data):
             """Transform names to uppercase."""
             for item in data:
                 if "name" in item:
                     item["name"] = item["name"].upper()
             return data
-        
-        result = (FluentPipeline
-            .from_sql_table(test_database, "users")
+
+        result = (
+            FluentPipeline.from_sql_table(test_database, "users")
             .add_transformer(uppercase_names)
             .to("duckdb")
             .with_name("test_single_transformation")
             .with_dataset("test_transformed")
-            .run())
-        
+            .run()
+        )
+
         assert result is not None
-    
+
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_chained_transformations(self, test_database, clean_dlt_state):
         """Test pipeline with multiple chained transformations."""
         from fldt import FluentPipeline
-        
+
         # Note: Transformations with dlt sources need to work with resources
         # For now, test basic transformation without filtering
         def add_full_name_field(data):
@@ -165,36 +176,38 @@ class TestTransformations:
                 if isinstance(item, dict) and "name" in item:
                     item["full_name"] = item["name"].upper()
             return data
-        
-        result = (FluentPipeline
-            .from_sql_table(test_database, "users")
+
+        result = (
+            FluentPipeline.from_sql_table(test_database, "users")
             .add_transformer(add_full_name_field)
             .to("duckdb")
             .with_name("test_chained_transformations")
             .with_dataset("test_chained")
-            .run())
-        
+            .run()
+        )
+
         assert result is not None
 
 
 class TestWriteDispositions:
     """Test different write dispositions (append, replace, merge)."""
-    
+
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_write_disposition_append(self, test_database, clean_dlt_state):
         """Test append write disposition (default behavior)."""
         from fldt import FluentPipeline
-        
+
         # Append is default - no need to specify
-        result = (FluentPipeline
-            .from_sql_table(test_database, "products")
+        result = (
+            FluentPipeline.from_sql_table(test_database, "products")
             .to("duckdb")
             .with_name("test_write_disposition_append")
             .with_dataset("test_append")
-            .run())
-        
+            .run()
+        )
+
         assert result is not None
-    
+
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_write_disposition_replace(self, test_database, clean_dlt_state):
         """Test replace write disposition via pipeline options."""
@@ -205,80 +218,84 @@ class TestWriteDispositions:
 
 class TestDatabaseCompatibility:
     """Test database-specific functionality."""
-    
+
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_sqlite_database(self, sqlite_database, clean_dlt_state):
         """Test with SQLite database explicitly."""
         from fldt import FluentPipeline
-        
-        result = (FluentPipeline
-            .from_sql_table(sqlite_database, "users")
+
+        result = (
+            FluentPipeline.from_sql_table(sqlite_database, "users")
             .to("duckdb")
             .with_name("test_sqlite_database")
             .with_dataset("test_sqlite")
-            .run())
-        
+            .run()
+        )
+
         assert result is not None
-    
+
     @pytest.mark.skipif(
         not (DUCKDB_AVAILABLE and POSTGRES_DRIVER_AVAILABLE),
-        reason="Requires duckdb and PostgreSQL driver"
+        reason="Requires duckdb and PostgreSQL driver",
     )
     def test_postgresql_database(self, postgres_database, clean_dlt_state):
         """Test with PostgreSQL database (if available)."""
         from fldt import FluentPipeline
-        
-        result = (FluentPipeline
-            .from_sql_table(postgres_database, "users")
+
+        result = (
+            FluentPipeline.from_sql_table(postgres_database, "users")
             .to("duckdb")
             .with_name("test_postgresql_database")
             .with_dataset("test_postgres")
-            .run())
-        
+            .run()
+        )
+
         assert result is not None
 
 
 class TestComplexScenarios:
     """Test complex real-world scenarios."""
-    
+
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_full_pipeline_with_all_features(self, test_database, clean_dlt_state):
         """Complete pipeline with incremental loading and options."""
         from fldt import FluentPipeline
-        
-        result = (FluentPipeline
-            .from_sql_table(test_database, "events")
+
+        result = (
+            FluentPipeline.from_sql_table(test_database, "events")
             .with_incremental("created_at", initial_value="2024-01-01 00:00:00")
             .with_name("complex_pipeline")
             .with_dataset("test_complex")
             .to("duckdb")
-            .run())
-        
+            .run()
+        )
+
         assert result is not None
 
 
 class TestErrorHandling:
     """Test error handling in integration scenarios."""
-    
+
     def test_pipeline_fails_without_destination(self, test_database):
         """Pipeline should fail validation without destination."""
         from fldt import FluentPipeline
         from fldt.exceptions import PipelineConfigurationError
-        
+
         pipeline = FluentPipeline.from_sql_table(test_database, "users")
-        
+
         with pytest.raises(PipelineConfigurationError):
             pipeline.run()
-    
+
     def test_pipeline_fails_with_invalid_table(self, test_database):
         """Pipeline should fail with non-existent table."""
         from fldt import FluentPipeline
         from fldt.exceptions import PipelineExecutionError
-        
+
         # This will fail when dlt tries to introspect the table
         with pytest.raises((PipelineExecutionError, Exception)):
-            (FluentPipeline
-                .from_sql_table(test_database, "nonexistent_table")
+            (
+                FluentPipeline.from_sql_table(test_database, "nonexistent_table")
                 .to("duckdb")
                 .with_name("test_pipeline_fails_with_invalid_table")
-                .run())
+                .run()
+            )

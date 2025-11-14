@@ -23,7 +23,7 @@ target_metadata = None
 
 def get_url():
     """Get database URL from environment or config.
-    
+
     Environment variable TEST_DATABASE_URL takes precedence over alembic.ini.
     This allows tests to override the database URL dynamically.
     """
@@ -56,7 +56,7 @@ def run_migrations_online() -> None:
     In this scenario we need to create an Engine and associate a connection with the context.
     """
     url = get_url()
-    
+
     # Create engine with appropriate pooling
     # For SQLite, use NullPool to avoid locking issues
     # For PostgreSQL, use default pooling
@@ -79,4 +79,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-

@@ -33,7 +33,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    
+
     # Create index on category for filtering tests
     op.create_index("idx_products_category", "products", ["category"])
 
@@ -42,4 +42,3 @@ def downgrade() -> None:
     """Drop products table."""
     op.drop_index("idx_products_category", table_name="products")
     op.drop_table("products")
-

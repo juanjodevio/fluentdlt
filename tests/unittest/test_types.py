@@ -192,4 +192,3 @@ class TestTypeCompatibility:
         assert config["source"] == []
         assert config["transformers"] == []
         assert config["options"] == {}
-

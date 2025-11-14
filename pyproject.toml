@@ -46,6 +46,8 @@ dev = [
     "black>=23.0.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
+    "isort>=5.12.0",
+    "types-psycopg2>=2.9.21",
     "tox>=4.32.0",
 ]
 integration = [
@@ -89,6 +91,33 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+allow_untyped_defs = true
+allow_incomplete_defs = true
+allow_untyped_calls = true
+disable_error_code = [
+    "index",
+    "call-arg",
+    "arg-type",
+    "type-arg",
+    "typeddict-item",
+    "assignment",
+    "unused-ignore",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.integration.alembic.*",
+    "tests.integration.conftest",
+    "tests.integration.test_integration",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["alembic", "alembic.*", "duckdb", "duckdb.*"]
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 88

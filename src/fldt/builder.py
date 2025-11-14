@@ -68,7 +68,9 @@ class PipelineBuilder:
             raise ValidationError("Source cannot be None")
 
         self._source = source
-        logger.debug("Set pipeline source", extra={"source_type": type(source).__name__})
+        logger.debug(
+            "Set pipeline source", extra={"source_type": type(source).__name__}
+        )
         return self
 
     def set_destination(self, destination: DestinationType) -> "PipelineBuilder":
@@ -90,7 +92,9 @@ class PipelineBuilder:
             raise ValidationError("Destination name cannot be blank")
 
         self._destination = destination
-        logger.debug("Set pipeline destination", extra={"destination": str(destination)})
+        logger.debug(
+            "Set pipeline destination", extra={"destination": str(destination)}
+        )
         return self
 
     def add_transformer(self, transformer: TransformerFunc) -> "PipelineBuilder":
@@ -298,4 +302,3 @@ class PipelineBuilder:
             f"transformers={len(self._transformers)}, "
             f"incremental={'set' if self._incremental else 'unset'})"
         )
-

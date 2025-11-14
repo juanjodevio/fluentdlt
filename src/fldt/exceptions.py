@@ -70,4 +70,3 @@ class AdapterError(FluentDLTError):
     """
 
     pass
-

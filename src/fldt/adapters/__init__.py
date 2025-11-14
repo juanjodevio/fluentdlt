@@ -8,4 +8,3 @@ from fldt.adapters.dlt_adapter import DltAdapter
 from fldt.adapters.protocol import PipelineAdapter
 
 __all__ = ["PipelineAdapter", "DltAdapter"]
-
