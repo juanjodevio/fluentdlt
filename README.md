@@ -510,6 +510,11 @@ pytest tests/unittest --cov=src/fldt --cov-report=term-missing --cov-report=xml:
 
 # Specific test file
 pytest tests/unittest/test_fluent.py -v
+
+# Lint (black, isort, mypy)
+uv run black --check src tests
+uv run isort --profile black --check-only src tests
+uv run mypy src tests
 ```
 
 ### Integration Tests (Real Databases)
