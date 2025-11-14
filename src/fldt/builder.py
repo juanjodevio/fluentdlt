@@ -127,8 +127,8 @@ class PipelineBuilder:
         self,
         cursor_field: str,
         initial_value: Any = None,
+        end_value: Any | None = None,
         primary_key: str | list[str] | None = None,
-        row_order: str = "asc",
         **kwargs: Any,
     ) -> "PipelineBuilder":
         """Configure incremental loading for the pipeline.
@@ -136,8 +136,8 @@ class PipelineBuilder:
         Args:
             cursor_field: Field name to use as cursor (e.g., 'updated_at').
             initial_value: Starting value for the cursor (optional).
+            end_value: Ending value for bounded backfills (optional).
             primary_key: Primary key field(s) for deduplication (optional).
-            row_order: Row ordering - 'asc' or 'desc'. Defaults to 'asc'.
             **kwargs: Additional incremental loading options.
 
         Returns:
@@ -149,16 +149,15 @@ class PipelineBuilder:
         if not cursor_field or not isinstance(cursor_field, str):
             raise ValidationError("cursor_field must be a non-empty string")
 
-        if row_order not in ("asc", "desc"):
-            raise ValidationError("row_order must be 'asc' or 'desc'")
-
         self._incremental = {
             "cursor_field": cursor_field,
-            "row_order": row_order,
         }
 
         if initial_value is not None:
             self._incremental["initial_value"] = initial_value
+
+        if end_value is not None:
+            self._incremental["end_value"] = end_value
 
         if primary_key is not None:
             self._incremental["primary_key"] = primary_key
@@ -169,7 +168,7 @@ class PipelineBuilder:
 
         logger.debug(
             "Configured incremental loading",
-            extra={"cursor_field": cursor_field, "row_order": row_order},
+            extra={"cursor_field": cursor_field},
         )
         return self
 

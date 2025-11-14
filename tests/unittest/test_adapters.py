@@ -24,6 +24,7 @@ class TestPipelineAdapterProtocol:
         assert hasattr(PipelineAdapter, "create_pipeline")
         assert hasattr(PipelineAdapter, "run_pipeline")
         assert hasattr(PipelineAdapter, "apply_transformations")
+        assert hasattr(PipelineAdapter, "prepare_source_with_incremental")
 
     def test_custom_adapter_implements_protocol(self) -> None:
         """Custom class implementing protocol methods works."""
@@ -37,6 +38,11 @@ class TestPipelineAdapterProtocol:
 
             def apply_transformations(
                 self, source: Any, transformers: list[Any]
+            ) -> Any:
+                return source
+
+            def prepare_source_with_incremental(
+                self, source: Any, incremental_config: dict[str, Any] | None
             ) -> Any:
                 return source
 
@@ -368,6 +374,7 @@ class TestDltAdapterIncrementalLoading:
         mock_dlt.sources = MagicMock()
         mock_incremental = MagicMock()
         mock_dlt.sources.incremental.return_value = mock_incremental
+        mock_wrapped_source = MagicMock()
 
         adapter = DltAdapter()
         with patch.dict(
@@ -375,25 +382,27 @@ class TestDltAdapterIncrementalLoading:
         ):
             adapter._ensure_dlt_loaded()
 
-        source = [{"id": 1, "updated_at": "2024-01-01"}]
+        source = MagicMock()
+        source.with_incremental.return_value = mock_wrapped_source
+
         incremental_config: IncrementalConfig = {
             "cursor_field": "updated_at",
             "initial_value": "2024-01-01",
             "primary_key": "id",
-            "row_order": "asc",
             "allow_external_schedulers": False,
         }
 
-        result = adapter.prepare_source_with_incremental(
-            source, dict(incremental_config)
-        )
+        config_copy = cast(IncrementalConfig, dict(incremental_config))
+        result = adapter.prepare_source_with_incremental(source, config_copy)
 
-        assert result == mock_incremental
+        assert result == mock_wrapped_source
         mock_dlt.sources.incremental.assert_called_once()
         call_args = mock_dlt.sources.incremental.call_args[1]
         assert call_args["cursor_path"] == "updated_at"
         assert call_args["initial_value"] == "2024-01-01"
         assert call_args["primary_key"] == "id"
+        source.with_incremental.assert_called_once_with(mock_incremental)
+        mock_dlt.resource.assert_not_called()
 
     def test_prepare_source_with_minimal_incremental_config(self) -> None:
         """prepare_source_with_incremental works with only cursor_field."""
@@ -401,6 +410,8 @@ class TestDltAdapterIncrementalLoading:
         mock_dlt.sources = MagicMock()
         mock_incremental = MagicMock()
         mock_dlt.sources.incremental.return_value = mock_incremental
+        mock_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_resource
 
         adapter = DltAdapter()
         with patch.dict(
@@ -411,15 +422,17 @@ class TestDltAdapterIncrementalLoading:
         source = [{"updated_at": "2024-01-01"}]
         incremental_config: IncrementalConfig = {"cursor_field": "updated_at"}
 
-        result = adapter.prepare_source_with_incremental(
-            source, dict(incremental_config)
-        )
+        config_copy = cast(IncrementalConfig, dict(incremental_config))
+        result = adapter.prepare_source_with_incremental(source, config_copy)
 
-        assert result == mock_incremental
+        assert result == mock_resource
         call_args = mock_dlt.sources.incremental.call_args[1]
         assert call_args["cursor_path"] == "updated_at"
         assert "initial_value" not in call_args
         assert "primary_key" not in call_args
+        mock_dlt.resource.assert_called_once()
+        _, resource_kwargs = mock_dlt.resource.call_args
+        assert resource_kwargs["incremental"] == mock_incremental
 
     def test_prepare_source_handles_incremental_errors(self) -> None:
         """prepare_source_with_incremental raises AdapterError on failure."""
@@ -437,9 +450,10 @@ class TestDltAdapterIncrementalLoading:
 
         source = [{"id": 1}]
         incremental_config: IncrementalConfig = {"cursor_field": "updated_at"}
+        config_copy = cast(IncrementalConfig, dict(incremental_config))
 
         with pytest.raises(AdapterError) as exc_info:
-            adapter.prepare_source_with_incremental(source, dict(incremental_config))
+            adapter.prepare_source_with_incremental(source, config_copy)
 
         assert "Failed to configure incremental loading" in str(exc_info.value)
         assert isinstance(exc_info.value.__cause__, Exception)

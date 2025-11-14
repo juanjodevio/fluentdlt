@@ -200,7 +200,6 @@ class TestPipelineBuilderSetIncremental:
         config = builder._incremental
         assert config is not None
         assert config["cursor_field"] == "updated_at"
-        assert config["row_order"] == "asc"  # default
 
     def test_set_incremental_with_all_params(self) -> None:
         """set_incremental() accepts all parameters."""
@@ -209,16 +208,16 @@ class TestPipelineBuilderSetIncremental:
         builder.set_incremental(
             cursor_field="updated_at",
             initial_value="2024-01-01",
+            end_value="2024-02-01",
             primary_key="id",
-            row_order="desc",
         )
 
         config = builder._incremental
         assert config is not None
         assert config["cursor_field"] == "updated_at"
         assert config["initial_value"] == "2024-01-01"
+        assert config["end_value"] == "2024-02-01"
         assert config["primary_key"] == "id"
-        assert config["row_order"] == "desc"
 
     def test_set_incremental_with_composite_primary_key(self) -> None:
         """set_incremental() accepts list as primary_key."""
@@ -253,17 +252,6 @@ class TestPipelineBuilderSetIncremental:
             builder.set_incremental("")
 
         assert "cursor_field" in str(exc_info.value)
-
-    def test_set_incremental_validates_row_order(self) -> None:
-        """set_incremental() validates row_order values."""
-        builder = PipelineBuilder()
-
-        with pytest.raises(ValidationError) as exc_info:
-            builder.set_incremental("updated_at", row_order="invalid")
-
-        assert "row_order" in str(exc_info.value)
-        assert "asc" in str(exc_info.value)
-        assert "desc" in str(exc_info.value)
 
 
 class TestPipelineBuilderSetPipelineName:

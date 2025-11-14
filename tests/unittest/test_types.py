@@ -61,14 +61,14 @@ class TestIncrementalConfig:
         config: IncrementalConfig = {
             "cursor_field": "updated_at",
             "initial_value": "2024-01-01",
+            "end_value": "2024-02-01",
             "primary_key": "id",
-            "row_order": "asc",
             "allow_external_schedulers": True,
         }
         assert config["cursor_field"] == "updated_at"
         assert config["initial_value"] == "2024-01-01"
+        assert config["end_value"] == "2024-02-01"
         assert config["primary_key"] == "id"
-        assert config["row_order"] == "asc"
         assert config["allow_external_schedulers"] is True
 
     def test_incremental_config_with_composite_primary_key(self) -> None:
@@ -83,8 +83,8 @@ class TestIncrementalConfig:
     def test_incremental_config_is_mutable(self) -> None:
         """IncrementalConfig instances are mutable dicts."""
         config: IncrementalConfig = {"cursor_field": "created_at"}
-        config["row_order"] = "desc"
-        assert config["row_order"] == "desc"
+        config["initial_value"] = "0"
+        assert config["initial_value"] == "0"
 
 
 class TestPipelineConfig:
@@ -113,7 +113,6 @@ class TestPipelineConfig:
         """PipelineConfig can include incremental configuration."""
         incremental: IncrementalConfig = {
             "cursor_field": "updated_at",
-            "row_order": "asc",
         }
         source_records: list[dict[str, int]] = [{"id": 1}]
         config: PipelineConfig = {

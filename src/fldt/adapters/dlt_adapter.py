@@ -9,7 +9,7 @@ from types import ModuleType
 from typing import Any
 
 from fldt.exceptions import AdapterError, PipelineExecutionError, ValidationError
-from fldt.types import PipelineConfig
+from fldt.types import IncrementalConfig, PipelineConfig
 
 logger = logging.getLogger(__name__)
 
@@ -212,7 +212,7 @@ class DltAdapter:
     def prepare_source_with_incremental(
         self,
         source: Any,
-        incremental_config: dict[str, Any] | None,
+        incremental_config: IncrementalConfig | None,
     ) -> Any:
         """Prepare a source with incremental loading configuration.
 
@@ -233,6 +233,7 @@ class DltAdapter:
             return source
 
         self._ensure_dlt_loaded()
+        assert self._dlt is not None
         assert self._dlt_sources is not None
 
         try:
@@ -242,27 +243,30 @@ class DltAdapter:
                 extra={"cursor_field": cursor_field},
             )
 
-            # Build incremental arguments
             incremental_args: dict[str, Any] = {"cursor_path": cursor_field}
-
             if "initial_value" in incremental_config:
                 incremental_args["initial_value"] = incremental_config["initial_value"]
-
             if "primary_key" in incremental_config:
                 incremental_args["primary_key"] = incremental_config["primary_key"]
-
-            if "row_order" in incremental_config:
-                # dlt uses 'last_value_func' for ordering, but we keep it simple
-                # and assume ascending order unless specified
-                pass
-
-            # Create incremental object
             incremental = self._dlt_sources.incremental(**incremental_args)
 
-            # Apply to source if it supports incremental
-            # Note: This is simplified - actual implementation depends on source type
-            logger.debug("Incremental loading configured successfully")
-            return incremental
+            if hasattr(source, "with_incremental") and callable(
+                getattr(source, "with_incremental")
+            ):
+                logger.debug("Applying incremental via source.with_incremental")
+                return source.with_incremental(incremental)
+
+            resource_name = getattr(source, "__name__", "incremental_source")
+            logger.debug(
+                "Wrapping source into dlt.resource with incremental",
+                extra={"resource_name": resource_name},
+            )
+            wrapped_source = self._dlt.resource(
+                source,
+                name=resource_name,
+                incremental=incremental,
+            )
+            return wrapped_source
 
         except Exception as e:
             logger.error(

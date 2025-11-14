@@ -7,7 +7,7 @@ without explicit inheritance.
 
 from typing import Any, Protocol
 
-from fldt.types import PipelineConfig
+from fldt.types import IncrementalConfig, PipelineConfig
 
 
 class PipelineAdapter(Protocol):
@@ -85,5 +85,24 @@ class PipelineAdapter(Protocol):
 
         Raises:
             PipelineExecutionError: If any transformation fails.
+        """
+        ...
+
+    def prepare_source_with_incremental(
+        self,
+        source: Any,
+        incremental_config: IncrementalConfig | None,
+    ) -> Any:
+        """Wrap source with incremental configuration if provided.
+
+        Args:
+            source: Original data source.
+            incremental_config: Incremental settings produced by builder.
+
+        Returns:
+            Source object prepared for incremental execution.
+
+        Raises:
+            AdapterError: If incremental configuration cannot be applied.
         """
         ...
