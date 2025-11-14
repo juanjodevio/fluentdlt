@@ -234,12 +234,15 @@ class TestDltAdapterPipelineExecution:
         mock_result = MagicMock()
         mock_result.loads_ids = ["load_1", "load_2"]
         mock_pipeline.run.return_value = mock_result
+        wrapped_source = MagicMock()
+        adapter._dlt.resource.return_value = wrapped_source
 
         source = [{"id": 1}, {"id": 2}]
         result = adapter.run_pipeline(mock_pipeline, source)
 
         assert result == mock_result
-        mock_pipeline.run.assert_called_once_with(source)
+        adapter._dlt.resource.assert_called_once_with(source, name="transformed_data")
+        mock_pipeline.run.assert_called_once_with(wrapped_source)
 
     def test_run_pipeline_handles_execution_errors(self) -> None:
         """run_pipeline raises PipelineExecutionError on failure."""
@@ -248,6 +251,7 @@ class TestDltAdapterPipelineExecution:
 
         mock_pipeline = MagicMock()
         mock_pipeline.run.side_effect = RuntimeError("Execution failed")
+        adapter._dlt.resource.return_value = MagicMock()
 
         source = [{"id": 1}]
 

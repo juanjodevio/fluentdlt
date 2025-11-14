@@ -30,7 +30,7 @@ class TestSQLTableLoading:
 
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_load_single_table(
-        self, test_database: ConnectionString, _clean_dlt_state: None
+        self, test_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Load single SQL table to DuckDB."""
         from fldt import FluentPipeline
@@ -49,7 +49,7 @@ class TestSQLTableLoading:
 
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_load_table_with_schema(
-        self, test_database: ConnectionString, _clean_dlt_state: None
+        self, test_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Load SQL table from specific schema."""
         from fldt import FluentPipeline
@@ -71,7 +71,7 @@ class TestSQLQueryExecution:
 
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_load_from_custom_query(
-        self, test_database: ConnectionString, _clean_dlt_state: None
+        self, test_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Load data from custom SQL query."""
         # Note: SQL queries with dlt require using sql_table with WHERE clause
@@ -80,7 +80,7 @@ class TestSQLQueryExecution:
 
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_load_with_join_query(
-        self, test_database: ConnectionString, _clean_dlt_state: None
+        self, test_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Test joining tables via SQL database source."""
         # dlt sql_database loads tables, not arbitrary queries
@@ -93,7 +93,7 @@ class TestSQLDatabaseLoading:
 
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_load_entire_database(
-        self, test_database: ConnectionString, _clean_dlt_state: None
+        self, test_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Load all tables from database."""
         from fldt import FluentPipeline
@@ -114,7 +114,7 @@ class TestIncrementalLoading:
 
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_incremental_with_cursor_field(
-        self, test_database: ConnectionString, _clean_dlt_state: None
+        self, test_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Test incremental loading with updated_at cursor."""
         from fldt import FluentPipeline
@@ -133,7 +133,7 @@ class TestIncrementalLoading:
 
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_incremental_with_primary_key(
-        self, test_database: ConnectionString, _clean_dlt_state: None
+        self, test_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Test incremental loading with primary key for deduplication."""
         from fldt import FluentPipeline
@@ -159,7 +159,7 @@ class TestTransformations:
 
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_single_transformation(
-        self, test_database: ConnectionString, _clean_dlt_state: None
+        self, test_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Test pipeline with single transformation."""
         from fldt import FluentPipeline
@@ -187,7 +187,7 @@ class TestTransformations:
 
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_chained_transformations(
-        self, test_database: ConnectionString, _clean_dlt_state: None
+        self, test_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Test pipeline with multiple chained transformations."""
         from fldt import FluentPipeline
@@ -220,7 +220,7 @@ class TestWriteDispositions:
 
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_write_disposition_append(
-        self, test_database: ConnectionString, _clean_dlt_state: None
+        self, test_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Test append write disposition (default behavior)."""
         from fldt import FluentPipeline
@@ -238,7 +238,7 @@ class TestWriteDispositions:
 
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_write_disposition_replace(
-        self, test_database: ConnectionString, _clean_dlt_state: None
+        self, test_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Test replace write disposition via pipeline options."""
         # Note: write_disposition is typically set on the source, not pipeline
@@ -251,7 +251,7 @@ class TestDatabaseCompatibility:
 
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_sqlite_database(
-        self, sqlite_database: ConnectionString, _clean_dlt_state: None
+        self, sqlite_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Test with SQLite database explicitly."""
         from fldt import FluentPipeline
@@ -271,7 +271,7 @@ class TestDatabaseCompatibility:
         reason="Requires duckdb and PostgreSQL driver",
     )
     def test_postgresql_database(
-        self, postgres_database: ConnectionString, _clean_dlt_state: None
+        self, postgres_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Test with PostgreSQL database (if available)."""
         from fldt import FluentPipeline
@@ -292,7 +292,7 @@ class TestComplexScenarios:
 
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_full_pipeline_with_all_features(
-        self, test_database: ConnectionString, _clean_dlt_state: None
+        self, test_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Complete pipeline with incremental loading and options."""
         from fldt import FluentPipeline

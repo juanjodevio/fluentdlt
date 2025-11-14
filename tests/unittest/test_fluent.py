@@ -466,6 +466,14 @@ class TestFluentPipelineIntegration:
         def multiply_two(data: Iterable[int]) -> list[int]:
             return [x * 2 for x in data]
 
+        def apply_chain(source: Iterable[int], transformers: list[Any]) -> list[int]:
+            result = list(source)
+            for transformer in transformers:
+                result = transformer(result)
+            return result
+
+        mock_adapter.apply_transformations.side_effect = apply_chain
+
         pipeline = (
             FluentPipeline.from_source([1, 2, 3])
             .add_transformer(add_ten)

@@ -12,6 +12,13 @@ from fldt.executor import PipelineExecutor
 from fldt.types import PipelineConfig
 
 
+def _apply_transformers(source: Any, transformers: list[Any]) -> Any:
+    result = source
+    for transformer in transformers:
+        result = transformer(result)
+    return result
+
+
 class TestPipelineExecutorInitialization:
     """Test PipelineExecutor initialization."""
 
@@ -38,6 +45,7 @@ class TestPipelineExecutorExecute:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
+        adapter.apply_transformations.side_effect = _apply_transformers
 
         executor = PipelineExecutor(adapter)
         config: PipelineConfig = {
@@ -54,6 +62,9 @@ class TestPipelineExecutorExecute:
 
         assert result == "mock_result"
         adapter.create_pipeline.assert_called_once_with(config)
+        adapter.apply_transformations.assert_called_once_with(
+            config["source"], config["transformers"]
+        )
         adapter.run_pipeline.assert_called_once()
 
     def test_execute_with_transformers(self) -> None:
@@ -61,6 +72,7 @@ class TestPipelineExecutorExecute:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
+        adapter.apply_transformations.side_effect = _apply_transformers
 
         executor = PipelineExecutor(adapter)
 
@@ -90,6 +102,7 @@ class TestPipelineExecutorExecute:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
+        adapter.apply_transformations.side_effect = _apply_transformers
 
         executor = PipelineExecutor(adapter)
 
@@ -121,6 +134,7 @@ class TestPipelineExecutorExecute:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
+        adapter.apply_transformations.side_effect = _apply_transformers
 
         executor = PipelineExecutor(adapter)
         config: PipelineConfig = {
@@ -145,6 +159,7 @@ class TestPipelineExecutorExecute:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "mock_result"
+        adapter.apply_transformations.side_effect = _apply_transformers
 
         executor = PipelineExecutor(adapter)
         config: PipelineConfig = {
@@ -161,7 +176,8 @@ class TestPipelineExecutorExecute:
 
         # Verify call order
         assert adapter.method_calls[0][0] == "create_pipeline"
-        assert adapter.method_calls[1][0] == "run_pipeline"
+        assert adapter.method_calls[1][0] == "apply_transformations"
+        assert adapter.method_calls[2][0] == "run_pipeline"
 
 
 class TestPipelineExecutorValidation:
@@ -264,6 +280,7 @@ class TestPipelineExecutorErrorHandling:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.side_effect = RuntimeError("Run error")
+        adapter.apply_transformations.side_effect = _apply_transformers
 
         executor = PipelineExecutor(adapter)
         config: PipelineConfig = {
@@ -285,16 +302,16 @@ class TestPipelineExecutorErrorHandling:
         """execute() wraps transformation errors."""
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
+        adapter.apply_transformations.side_effect = PipelineExecutionError(
+            "Transformation failed"
+        )
 
         executor = PipelineExecutor(adapter)
-
-        def failing_transformer(data: list[int]) -> list[int]:
-            raise ValueError("Transformation failed")
 
         config: PipelineConfig = {
             "source": [1],
             "destination": "duckdb",
-            "transformers": [failing_transformer],
+            "transformers": [lambda data: data],
             "incremental": None,
             "pipeline_name": None,
             "dataset_name": None,
@@ -338,6 +355,7 @@ class TestPipelineExecutorIntegration:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = {"status": "success", "rows": 100}
+        adapter.apply_transformations.side_effect = _apply_transformers
 
         executor = PipelineExecutor(adapter)
 
@@ -369,6 +387,7 @@ class TestPipelineExecutorIntegration:
         adapter = Mock()
         adapter.create_pipeline.return_value = "mock_pipeline"
         adapter.run_pipeline.return_value = "result"
+        adapter.apply_transformations.side_effect = _apply_transformers
 
         executor = PipelineExecutor(adapter)
 

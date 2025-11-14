@@ -9,7 +9,6 @@ from typing import Any
 
 from fldt.adapters.protocol import PipelineAdapter
 from fldt.exceptions import PipelineConfigurationError, PipelineExecutionError
-from fldt.transformers import TransformerChain
 from fldt.types import PipelineConfig
 
 logger = logging.getLogger(__name__)
@@ -83,7 +82,7 @@ class PipelineExecutor:
 
             # Step 2: Apply transformations
             logger.debug("Preparing source with transformations")
-            transformed_source = self._apply_transformations(
+            transformed_source = self._adapter.apply_transformations(
                 config["source"],
                 config["transformers"],
             )
@@ -127,40 +126,6 @@ class PipelineExecutor:
             raise PipelineConfigurationError("Config must have transformers list")
 
         logger.debug("Configuration validated successfully")
-
-    def _apply_transformations(
-        self,
-        source: Any,
-        transformers: list[Any],
-    ) -> Any:
-        """Apply transformations to the source data.
-
-        Uses TransformerChain for transformation application to ensure
-        consistent error handling and logging.
-
-        Args:
-            source: Original data source.
-            transformers: List of transformation functions.
-
-        Returns:
-            Transformed source data.
-
-        Raises:
-            PipelineExecutionError: If transformation fails.
-        """
-        if not transformers:
-            logger.debug("No transformations to apply")
-            return source
-
-        try:
-            chain = TransformerChain(transformers)
-            return chain.apply(source)
-        except Exception as e:
-            logger.error(
-                "Transformation failed during execution",
-                extra={"error": str(e)},
-            )
-            raise PipelineExecutionError(f"Transformation failed: {e}") from e
 
     def __repr__(self) -> str:
         """Return string representation of the executor."""
