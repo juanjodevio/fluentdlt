@@ -67,6 +67,7 @@ addopts = [
 ]
 markers = [
     "integration: integration tests that require external dependencies (deselect with '-m \"not integration\"')",
+    "postgres: tests that require PostgreSQL source and destination databases",
 ]
 
 [tool.coverage.run]

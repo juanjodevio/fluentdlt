@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
+import time
 from pathlib import Path
 from typing import Iterator
 
@@ -16,6 +17,72 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from alembic import command
 from alembic.config import Config
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import SQLAlchemyError
+
+DEFAULT_SRC_PG_URL = "postgresql+psycopg2://fldt:fldt@localhost:5532/fldt_source"
+DEFAULT_DEST_PG_URL = "postgresql+psycopg2://fldt:fldt@localhost:5542/fldt_dest"
+POSTGRES_READY_TIMEOUT = 60.0
+_INTEGRATION_DIR = Path(__file__).parent.absolute()
+
+
+def _build_alembic_config() -> Config:
+    alembic_ini = _INTEGRATION_DIR / "alembic.ini"
+    config = Config(str(alembic_ini))
+    script_location = _INTEGRATION_DIR / "alembic"
+    config.set_main_option("script_location", str(script_location))
+    return config
+
+
+def _wait_for_postgres(url: str, timeout: float = POSTGRES_READY_TIMEOUT) -> None:
+    """Wait until PostgreSQL is ready to accept connections."""
+    start = time.time()
+    last_exc: Exception | None = None
+    while time.time() - start < timeout:
+        engine = None
+        try:
+            engine = create_engine(url)
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return
+        except Exception as exc:  # pragma: no cover - best effort wait
+            last_exc = exc
+            time.sleep(1)
+        finally:
+            if engine is not None:
+                engine.dispose()
+    if last_exc is not None:
+        raise last_exc
+
+
+def _require_postgres_or_skip(url: str, label: str) -> None:
+    """Skip tests gracefully if PostgreSQL is unavailable."""
+    try:
+        _wait_for_postgres(url)
+    except Exception as exc:  # pragma: no cover - environment guard
+        pytest.skip(f"{label} not reachable ({url}): {exc}")
+
+
+def _reset_postgres_schema(url: str) -> None:
+    """Drop all non-system schemas and recreate public for a clean slate."""
+    engine = create_engine(url, isolation_level="AUTOCOMMIT")
+    with engine.connect() as conn:
+        schemas = conn.execute(
+            text(
+                """
+                SELECT schema_name
+                FROM information_schema.schemata
+                WHERE schema_name NOT IN ('pg_catalog', 'information_schema')
+                  AND schema_name NOT LIKE 'pg_%'
+                """
+            )
+        )
+        for row in schemas:
+            schema = row[0]
+            conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS public"))
+    engine.dispose()
 
 
 @pytest.fixture(scope="session")
@@ -25,16 +92,7 @@ def alembic_config() -> Config:
     Returns Alembic Config pointing to integration test migrations.
     """
     # Get path to alembic.ini
-    integration_dir = Path(__file__).parent.absolute()
-    alembic_ini = integration_dir / "alembic.ini"
-
-    config = Config(str(alembic_ini))
-
-    # Set absolute path to script location
-    script_location = integration_dir / "alembic"
-    config.set_main_option("script_location", str(script_location))
-
-    return config
+    return _build_alembic_config()
 
 
 @pytest.fixture(scope="session")
@@ -122,6 +180,64 @@ def postgres_database(alembic_config: Config) -> Iterator[str]:
     except Exception:
         # Best effort cleanup
         pass
+
+
+@pytest.fixture(scope="session")
+def pg_source_database() -> Iterator[str]:
+    """Provision and seed the PostgreSQL source database via Alembic."""
+    source_url = os.getenv("SRC_PG_URL", DEFAULT_SRC_PG_URL)
+    _require_postgres_or_skip(source_url, "SRC_PG_URL")
+    _reset_postgres_schema(source_url)
+
+    source_config = _build_alembic_config()
+    source_config.set_main_option("sqlalchemy.url", source_url)
+    command.upgrade(source_config, "head")
+
+    yield source_url
+
+    _reset_postgres_schema(source_url)
+
+
+@pytest.fixture(scope="session")
+def pg_destination_database() -> Iterator[str]:
+    """Provision clean PostgreSQL destination database for dlt output."""
+    dest_url = os.getenv("DEST_PG_URL", DEFAULT_DEST_PG_URL)
+    _require_postgres_or_skip(dest_url, "DEST_PG_URL")
+    _reset_postgres_schema(dest_url)
+
+    yield dest_url
+
+    _reset_postgres_schema(dest_url)
+
+
+@pytest.fixture(scope="session")
+def pg_connection_urls(
+    pg_source_database: str, pg_destination_database: str
+) -> tuple[str, str]:
+    """Return tuple of (source_url, destination_url) for pg<->pg tests."""
+    return pg_source_database, pg_destination_database
+
+
+@pytest.fixture
+def postgres_destination_credentials(
+    monkeypatch: MonkeyPatch, pg_destination_database: str
+) -> None:
+    """Configure dlt to write to PostgreSQL destination."""
+    url = make_url(pg_destination_database)
+    # dlt expects psycopg2-style DSN without the dialect driver suffix
+    driverless_url = url.set(drivername="postgresql")
+    monkeypatch.setenv(
+        "DESTINATION__POSTGRES__CREDENTIALS",
+        driverless_url.render_as_string(hide_password=False),
+    )
+
+
+@pytest.fixture
+def reset_postgres_destination(pg_destination_database: str) -> Iterator[str]:
+    """Ensure destination schema is empty before/after each test."""
+    _reset_postgres_schema(pg_destination_database)
+    yield pg_destination_database
+    _reset_postgres_schema(pg_destination_database)
 
 
 @pytest.fixture(scope="session")

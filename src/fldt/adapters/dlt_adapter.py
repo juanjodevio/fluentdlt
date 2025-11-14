@@ -238,12 +238,20 @@ class DltAdapter:
 
         try:
             cursor_field = incremental_config["cursor_field"]
+            if isinstance(cursor_field, str):
+                cursor_path: Any = (
+                    cursor_field
+                    if cursor_field.startswith("$")
+                    else f"$.{cursor_field}"
+                )
+            else:
+                cursor_path = cursor_field
             logger.info(
                 "Configuring incremental loading",
                 extra={"cursor_field": cursor_field},
             )
 
-            incremental_args: dict[str, Any] = {"cursor_path": cursor_field}
+            incremental_args: dict[str, Any] = {"cursor_path": cursor_path}
             if "initial_value" in incremental_config:
                 incremental_args["initial_value"] = incremental_config["initial_value"]
             if "primary_key" in incremental_config:
