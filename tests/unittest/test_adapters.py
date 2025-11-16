@@ -398,7 +398,7 @@ class TestDltAdapterIncrementalLoading:
         assert result == mock_wrapped_source
         mock_dlt.sources.incremental.assert_called_once()
         call_args = mock_dlt.sources.incremental.call_args[1]
-        assert call_args["cursor_path"] == "updated_at"
+        assert call_args["cursor_path"] == "$.updated_at"
         assert call_args["initial_value"] == "2024-01-01"
         assert call_args["primary_key"] == "id"
         source.with_incremental.assert_called_once_with(mock_incremental)
@@ -427,7 +427,7 @@ class TestDltAdapterIncrementalLoading:
 
         assert result == mock_resource
         call_args = mock_dlt.sources.incremental.call_args[1]
-        assert call_args["cursor_path"] == "updated_at"
+        assert call_args["cursor_path"] == "$.updated_at"
         assert "initial_value" not in call_args
         assert "primary_key" not in call_args
         mock_dlt.resource.assert_called_once()
