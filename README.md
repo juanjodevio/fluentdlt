@@ -73,6 +73,23 @@ result = (FluentPipeline
 
 ---
 
+## 📑 Table of Contents
+
+- [💡 Usage Examples](#-usage-examples)
+  - [Example 1: Raw Data to DuckDB](#example-1-raw-data-to-duckdb)
+  - [Example 2: SQL Table with Transformations](#example-2-sql-table-with-transformations)
+  - [Example 3: Incremental Loading](#example-3-incremental-loading)
+  - [Example 4: Custom SQL Query](#example-4-custom-sql-query)
+  - [Example 5: Entire Database Sync](#example-5-entire-database-sync)
+  - [Example 6: Multiple Transformations](#example-6-multiple-transformations)
+  - [Example 7: Complex Pipeline with All Options](#example-7-complex-pipeline-with-all-options)
+- [🏗️ Architecture](#️-architecture)
+  - [Architecture Diagram](#architecture-diagram)
+  - [Components](#components)
+  - [Design Principles](#design-principles)
+
+---
+
 ## 📖 API Reference
 
 ### Factory Methods
