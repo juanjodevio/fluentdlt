@@ -604,6 +604,227 @@ class TestDltAdapterTransformations:
         # Result should be transformed resource
         assert result is not None
 
+    def test_apply_transformations_wraps_generator(self) -> None:
+        """apply_transformations wraps generator sources before applying transformations."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+        mock_dlt.transformer.return_value = lambda func: func
+        mock_wrapped_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_wrapped_resource
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        def data_generator() -> Any:
+            """Generator that yields data."""
+            yield {"id": 1}
+            yield {"id": 2}
+
+        gen = data_generator()
+
+        def transformer(record: dict[str, Any]) -> dict[str, Any]:
+            """Transformer for records."""
+            return {**record, "transformed": True}
+
+        result = adapter.apply_transformations(gen, [transformer])
+
+        # Should have wrapped the generator (converted to list, then wrapped)
+        mock_dlt.resource.assert_called()
+        # Should have applied transformations via dlt resource path
+        assert mock_dlt.transformer.called
+
+    def test_apply_transformations_wraps_callable(self) -> None:
+        """apply_transformations wraps callable sources before applying transformations."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+        mock_dlt.transformer.return_value = lambda func: func
+        mock_wrapped_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_wrapped_resource
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        def fetch_data() -> list[dict[str, int]]:
+            """Callable that returns data."""
+            return [{"id": 1}, {"id": 2}]
+
+        def transformer(record: dict[str, Any]) -> dict[str, Any]:
+            """Transformer for records."""
+            return {**record, "transformed": True}
+
+        result = adapter.apply_transformations(fetch_data, [transformer])
+
+        # Should have wrapped the callable
+        mock_dlt.resource.assert_called_once_with(fetch_data, name="transformed_data")
+        # Should have applied transformations via dlt resource path
+        assert mock_dlt.transformer.called
+
+    def test_wrap_raw_source_if_needed_with_generator(self) -> None:
+        """_wrap_raw_source_if_needed converts generator to list and wraps it."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+        mock_wrapped_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_wrapped_resource
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        def data_generator() -> Any:
+            """Generator that yields data."""
+            yield {"id": 1}
+            yield {"id": 2}
+
+        gen = data_generator()
+        result = adapter._wrap_raw_source_if_needed(gen)
+
+        # Should have converted generator to list and wrapped it
+        mock_dlt.resource.assert_called_once()
+        call_args = mock_dlt.resource.call_args
+        # First argument should be a list (converted from generator)
+        assert isinstance(call_args[0][0], list)
+        assert call_args[1]["name"] == "transformed_data"
+        assert result == mock_wrapped_resource
+
+    def test_wrap_raw_source_if_needed_with_callable(self) -> None:
+        """_wrap_raw_source_if_needed wraps callable sources."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+        mock_wrapped_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_wrapped_resource
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        def fetch_data() -> list[dict[str, int]]:
+            """Callable that returns data."""
+            return [{"id": 1}]
+
+        result = adapter._wrap_raw_source_if_needed(fetch_data)
+
+        # Should have wrapped the callable
+        mock_dlt.resource.assert_called_once_with(fetch_data, name="transformed_data")
+        assert result == mock_wrapped_resource
+
+    def test_wrap_raw_source_if_needed_with_set(self) -> None:
+        """_wrap_raw_source_if_needed wraps set sources."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+        mock_wrapped_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_wrapped_resource
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        source_set = {1, 2, 3}
+        result = adapter._wrap_raw_source_if_needed(source_set)
+
+        # Should have wrapped the set
+        mock_dlt.resource.assert_called_once_with(source_set, name="transformed_data")
+        assert result == mock_wrapped_resource
+
+    def test_wrap_raw_source_if_needed_skips_list(self) -> None:
+        """_wrap_raw_source_if_needed does not wrap lists (raw data transformation)."""
+        mock_dlt = MagicMock()
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        source_list = [{"id": 1}]
+        result = adapter._wrap_raw_source_if_needed(source_list)
+
+        # Should return as-is (not wrapped)
+        assert result is source_list
+        mock_dlt.resource.assert_not_called()
+
+    def test_wrap_raw_source_if_needed_skips_dlt_resource(self) -> None:
+        """_wrap_raw_source_if_needed does not wrap already-wrapped dlt resources."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        # Create a mock dlt resource
+        mock_resource = MagicMock()
+        mock_resource.resources = []  # dlt source attribute
+
+        result = adapter._wrap_raw_source_if_needed(mock_resource)
+
+        # Should return as-is (not wrapped again)
+        assert result is mock_resource
+        mock_dlt.resource.assert_not_called()
+
+    def test_wrap_raw_source_if_needed_skips_none(self) -> None:
+        """_wrap_raw_source_if_needed handles None source."""
+        mock_dlt = MagicMock()
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        result = adapter._wrap_raw_source_if_needed(None)
+
+        assert result is None
+        mock_dlt.resource.assert_not_called()
+
+    def test_wrap_raw_source_if_needed_skips_strings(self) -> None:
+        """_wrap_raw_source_if_needed does not wrap strings."""
+        mock_dlt = MagicMock()
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        source_string = "test_string"
+        result = adapter._wrap_raw_source_if_needed(source_string)
+
+        assert result is source_string
+        mock_dlt.resource.assert_not_called()
+
+    def test_wrap_raw_source_if_needed_skips_primitives(self) -> None:
+        """_wrap_raw_source_if_needed does not wrap primitive types."""
+        mock_dlt = MagicMock()
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        # Test with int
+        result = adapter._wrap_raw_source_if_needed(42)
+        assert result == 42
+        mock_dlt.resource.assert_not_called()
+
+        mock_dlt.resource.reset_mock()
+        # Test with float
+        result = adapter._wrap_raw_source_if_needed(3.14)
+        assert result == 3.14
+        mock_dlt.resource.assert_not_called()
+
+        mock_dlt.resource.reset_mock()
+        # Test with bool
+        result = adapter._wrap_raw_source_if_needed(True)
+        assert result is True
+        mock_dlt.resource.assert_not_called()
+
 
 class TestDltAdapterIncrementalLoading:
     """Test DltAdapter incremental loading configuration."""
