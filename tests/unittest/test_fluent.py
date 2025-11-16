@@ -130,12 +130,14 @@ class TestFluentPipelineFromSqlQuery:
         """from_sql_query() creates pipeline from SQL query."""
         mock_engine = Mock()
         mock_create_engine.return_value = mock_engine
+
         # dlt.resource is a decorator: @dlt.resource(name=...) calls dlt.resource(name=...)
         # which returns a decorator function that then wraps the actual function
         def identity_decorator(func):
             return func
 
         mock_dlt_resource.return_value = identity_decorator
+
         # dlt.source is also a decorator - when decorated function is called, it returns resources
         def source_func():
             return identity_decorator(lambda: None)
@@ -172,6 +174,7 @@ class TestFluentPipelineFromSqlQuery:
         """from_sql_query() creates source with custom resource."""
         mock_engine = Mock()
         mock_create_engine.return_value = mock_engine
+
         # dlt.resource is a decorator, so it returns a decorator function
         def identity_decorator(func):
             return func
@@ -198,6 +201,7 @@ class TestFluentPipelineFromSqlQuery:
         from sqlalchemy.engine import Engine
 
         mock_engine = Mock(spec=Engine)
+
         # dlt.resource is a decorator, so it returns a decorator function
         def identity_decorator(func):
             return func
