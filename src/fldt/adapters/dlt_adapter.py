@@ -159,11 +159,13 @@ class DltAdapter:
     ) -> Any:
         """Apply transformations to the source data.
 
-        Transformations are applied sequentially. Each transformer receives
-        the output of the previous transformation (or original source for first).
+        Transformations are applied sequentially. For dlt resources/sources,
+        transformers are applied at the record level using dlt's transformer
+        pattern. For raw data (lists, dicts, tuples), transformers are applied
+        directly to the data.
 
         Args:
-            source: Original data source.
+            source: Original data source (dlt resource/source or raw data).
             transformers: List of transformation functions.
 
         Returns:
@@ -178,15 +180,181 @@ class DltAdapter:
 
         logger.info("Applying transformations", extra={"count": len(transformers)})
 
+        # Validate all transformers are callable
+        for idx, transformer in enumerate(transformers):
+            if not callable(transformer):
+                raise PipelineExecutionError(
+                    f"Transformer at index {idx} is not callable: {type(transformer)}"
+                )
+
+        # Check if source is a dlt resource/source (not raw Python data)
+        is_dlt_resource = self._is_dlt_resource(source)
+
+        if is_dlt_resource:
+            return self._apply_transformations_to_dlt_resource(source, transformers)
+        else:
+            return self._apply_transformations_to_raw_data(source, transformers)
+
+    def _is_dlt_resource(self, source: Any) -> bool:
+        """Check if source is a dlt resource or source object.
+
+        Args:
+            source: Source to check.
+
+        Returns:
+            True if source appears to be a dlt resource/source, False otherwise.
+        """
+        # Raw Python data types are not dlt resources
+        if isinstance(source, (list, tuple, dict)):
+            # Check if dict is a simple dict (not a dlt source wrapper)
+            if isinstance(source, dict):
+                # Simple heuristic: if it's a dict with only string keys
+                # and no dlt-specific attributes, treat as raw data
+                if not hasattr(source, "__dlt__") and not hasattr(source, "resources"):
+                    return False
+            else:
+                return False
+
+        # Check for pandas DataFrames and Series (treat as raw data)
+        try:
+            import pandas as pd  # type: ignore[import-untyped]
+
+            if isinstance(source, (pd.DataFrame, pd.Series)):
+                return False
+        except ImportError:
+            # pandas not available, skip check
+            pass
+
+        # Check for dlt-specific attributes/methods
+        # dlt resources typically have these characteristics:
+        # - Have a `__name__` attribute
+        # - Are callable or have `resources` attribute
+        # - Have dlt-specific metadata
+        if hasattr(source, "resources") or hasattr(source, "__dlt__"):
+            return True
+
+        # If it's callable and not a simple function (likely a dlt resource)
+        # but exclude simple types
+        if callable(source) and not isinstance(source, (type, type(lambda: None))):
+            # Additional check: dlt resources often have specific attributes
+            if hasattr(source, "__name__") or hasattr(source, "name"):
+                return True
+
+        # Default: assume it's a dlt resource if it's not raw Python data
+        # This is safer for SQL/dlt-backed sources
+        return not isinstance(source, (list, tuple, dict, str, int, float, bool))
+
+    def _apply_transformations_to_dlt_resource(
+        self, source: Any, transformers: list[Any]
+    ) -> Any:
+        """Apply transformations to a dlt resource at record level.
+
+        Wraps the source with dlt transformers that process individual records.
+
+        Args:
+            source: dlt resource or source object.
+            transformers: List of transformation functions that accept records.
+
+        Returns:
+            Transformed dlt resource.
+
+        Raises:
+            PipelineExecutionError: If transformation fails.
+        """
+        self._ensure_dlt_loaded()
+        assert self._dlt is not None
+        dlt_module = self._dlt  # Capture for type checker
+
+        try:
+            # Start with the source
+            current_source = source
+
+            # Apply each transformer sequentially using dlt's transformer pattern
+            for idx, transformer_func in enumerate(transformers):
+                logger.debug(f"Applying dlt transformer {idx + 1}/{len(transformers)}")
+
+                # Create a dlt transformer that wraps the user's transformer function
+                # The transformer receives items (records) and applies the user's function
+                # Use default parameter to capture transformer_func in closure properly
+                def make_transformer(transformer: Any) -> Any:
+                    """Factory to create transformer with proper closure."""
+
+                    @dlt_module.transformer(  # type: ignore[misc]
+                        data_from=current_source,
+                        name=f"transformer_{idx + 1}",
+                    )
+                    def transformed_resource(items: Any) -> Any:
+                        """Wrapper that applies user transformer to each record."""
+                        for item in items:
+                            # User transformer expects a list of records or a single record
+                            # Try both patterns for flexibility
+                            try:
+                                # Pattern 1: Transformer expects a list
+                                if isinstance(item, dict):
+                                    # Single record - try calling with list first
+                                    try:
+                                        transformed = transformer([item])
+                                        if (
+                                            isinstance(transformed, list)
+                                            and len(transformed) > 0
+                                        ):
+                                            yield transformed[0]
+                                        else:
+                                            yield item
+                                    except (TypeError, AttributeError):
+                                        # Pattern 2: Transformer expects single record
+                                        transformed = transformer(item)
+                                        if isinstance(transformed, dict):
+                                            yield transformed
+                                        else:
+                                            yield item
+                                else:
+                                    # Not a dict, pass through
+                                    yield item
+                            except Exception as e:
+                                logger.error(
+                                    f"Error transforming record: {e}",
+                                    extra={"item": str(item)[:100]},
+                                )
+                                raise
+
+                    return transformed_resource
+
+                current_source = make_transformer(transformer_func)
+
+            logger.debug("All dlt transformations applied successfully")
+            return current_source
+
+        except Exception as e:
+            logger.error(
+                "Failed to apply transformations to dlt resource",
+                extra={"error": str(e)},
+            )
+            raise PipelineExecutionError(
+                f"Failed to apply transformations to dlt resource: {e}"
+            ) from e
+
+    def _apply_transformations_to_raw_data(
+        self, source: Any, transformers: list[Any]
+    ) -> Any:
+        """Apply transformations to raw Python data (lists, dicts, tuples, pandas DataFrames/Series).
+
+        Args:
+            source: Raw data (list, dict, tuple, pandas DataFrame/Series, etc.).
+            transformers: List of transformation functions.
+
+        Returns:
+            Transformed data.
+
+        Raises:
+            PipelineExecutionError: If transformation fails.
+        """
         result = source
         for idx, transformer in enumerate(transformers):
             try:
-                if not callable(transformer):
-                    raise PipelineExecutionError(
-                        f"Transformer at index {idx} is not callable: {type(transformer)}"
-                    )
-
-                logger.debug(f"Applying transformer {idx + 1}/{len(transformers)}")
+                logger.debug(
+                    f"Applying raw data transformer {idx + 1}/{len(transformers)}"
+                )
                 result = transformer(result)
 
             except Exception as e:
@@ -198,7 +366,7 @@ class DltAdapter:
                     f"Transformation {idx + 1} failed: {e}"
                 ) from e
 
-        logger.debug("All transformations applied successfully")
+        logger.debug("All raw data transformations applied successfully")
         return result
 
     def _prepare_source_for_pipeline(self, source: Any) -> Any:
