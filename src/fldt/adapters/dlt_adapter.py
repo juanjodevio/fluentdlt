@@ -217,7 +217,7 @@ class DltAdapter:
 
         # Check for pandas DataFrames and Series (treat as raw data)
         try:
-            import pandas as pd
+            import pandas as pd  # type: ignore[import-untyped]
 
             if isinstance(source, (pd.DataFrame, pd.Series)):
                 return False
@@ -263,6 +263,7 @@ class DltAdapter:
         """
         self._ensure_dlt_loaded()
         assert self._dlt is not None
+        dlt_module = self._dlt  # Capture for type checker
 
         try:
             # Start with the source
@@ -278,7 +279,7 @@ class DltAdapter:
                 def make_transformer(transformer: Any) -> Any:
                     """Factory to create transformer with proper closure."""
 
-                    @self._dlt.transformer(
+                    @dlt_module.transformer(  # type: ignore[misc]
                         data_from=current_source,
                         name=f"transformer_{idx + 1}",
                     )

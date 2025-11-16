@@ -401,13 +401,13 @@ class TestDltAdapterTransformations:
         mock_resource.name = "test_resource"
 
         # Track transformer calls
-        transformer_calls = []
+        transformer_calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
 
-        def mock_transformer_decorator(*args, **kwargs):
+        def mock_transformer_decorator(*args: Any, **kwargs: Any) -> Any:
             """Mock transformer decorator that tracks calls."""
             transformer_calls.append((args, kwargs))
 
-            def decorator(func):
+            def decorator(func: Any) -> Any:
                 # Return a mock transformed resource
                 mock_transformed = MagicMock()
                 mock_transformed.__name__ = func.__name__
@@ -484,7 +484,7 @@ class TestDltAdapterTransformations:
     def test_apply_transformations_with_pandas_dataframe(self) -> None:
         """apply_transformations treats pandas DataFrame as raw data."""
         try:
-            import pandas as pd
+            import pandas as pd  # type: ignore[import-untyped]
         except ImportError:
             pytest.skip("pandas not available")
 
@@ -559,14 +559,14 @@ class TestDltAdapterTransformations:
         mock_dlt.sources = MagicMock()
 
         # Create a mock dlt resource that yields records
-        records_received = []
+        records_received: list[Any] = []
 
-        def mock_transformer_decorator(*args, **kwargs):
+        def mock_transformer_decorator(*args: Any, **kwargs: Any) -> Any:
             """Mock transformer decorator."""
 
-            def decorator(func):
+            def decorator(func: Any) -> Any:
                 # Wrap the function to track what it receives
-                def wrapper(items):
+                def wrapper(items: Any) -> Any:
                     for item in items:
                         records_received.append(item)
                         # Call the user's transformer function
