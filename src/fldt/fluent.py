@@ -304,6 +304,61 @@ class FluentPipeline:
         builder.set_source(source)
         return cls(builder)
 
+    @classmethod
+    def from_df(cls, df: Any) -> "FluentPipeline":
+        """Create a pipeline from a pandas DataFrame.
+
+        Convenience method for loading data from a pandas DataFrame.
+        The DataFrame is converted to records (list of dictionaries) for
+        dlt processing.
+
+        Args:
+            df: pandas DataFrame to load.
+
+        Returns:
+            New FluentPipeline instance with DataFrame source.
+
+        Raises:
+            ValidationError: If df is not a pandas DataFrame.
+            AdapterError: If pandas is not available.
+
+        Example:
+            ```python
+            import pandas as pd
+
+            df = pd.DataFrame({"id": [1, 2], "name": ["Alice", "Bob"]})
+            FluentPipeline.from_df(df).to("duckdb").run()
+            ```
+        """
+        try:
+            import pandas as pd  # type: ignore[import-untyped]
+        except ImportError as e:
+            from fldt.exceptions import AdapterError
+
+            raise AdapterError(
+                "pandas is not installed. Install it with: pip install pandas"
+            ) from e
+
+        from fldt.exceptions import ValidationError
+
+        if not isinstance(df, pd.DataFrame):
+            raise ValidationError(f"Expected pandas DataFrame, got {type(df).__name__}")
+
+        logger.info(
+            "Creating pipeline from pandas DataFrame",
+            extra={"shape": df.shape, "columns": list(df.columns)},
+        )
+
+        # Convert DataFrame to records (list of dicts)
+        # This format is what dlt expects for tabular data
+        records = df.to_dict("records")
+
+        # Use from_source with the records
+        # The adapter will wrap it in dlt.resource automatically
+        builder = PipelineBuilder()
+        builder.set_source(records)
+        return cls(builder)
+
     def to(self, destination: DestinationType) -> "FluentPipeline":
         """Set the destination for the pipeline.
 

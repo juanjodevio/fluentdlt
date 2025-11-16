@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable
-from unittest.mock import Mock, patch
+from typing import Any, Callable, Iterable, cast
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -359,6 +359,96 @@ class TestFluentPipelineFromSqlDatabase:
                 FluentPipeline.from_sql_database("conn")
 
             assert "not available" in str(exc_info.value)
+
+
+class TestFluentPipelineFromDf:
+    """Test from_df factory method."""
+
+    def test_from_df_with_dataframe(self) -> None:
+        """from_df() creates pipeline from pandas DataFrame."""
+        try:
+            import pandas as pd  # type: ignore[import-untyped]
+        except ImportError:
+            pytest.skip("pandas not available")
+
+        df = pd.DataFrame({"id": [1, 2], "name": ["Alice", "Bob"]})
+        pipeline = FluentPipeline.from_df(df)
+
+        # Source should be converted to records (list of dicts)
+        source = pipeline._builder._source
+        assert isinstance(source, list)
+        source_list = cast(list[dict[str, Any]], source)
+        assert len(source_list) == 2
+        assert source_list[0] == {"id": 1, "name": "Alice"}
+        assert source_list[1] == {"id": 2, "name": "Bob"}
+
+    def test_from_df_with_empty_dataframe(self) -> None:
+        """from_df() handles empty DataFrame."""
+        try:
+            import pandas as pd
+        except ImportError:
+            pytest.skip("pandas not available")
+
+        df = pd.DataFrame()
+        pipeline = FluentPipeline.from_df(df)
+
+        source = pipeline._builder._source
+        assert isinstance(source, list)
+        assert len(source) == 0
+
+    def test_from_df_validates_dataframe_type(self) -> None:
+        """from_df() raises ValidationError for non-DataFrame input."""
+        # Create a mock pandas module with a DataFrame class
+        class MockDataFrame:
+            """Mock DataFrame class."""
+
+            pass
+
+        mock_pd = MagicMock()
+        mock_pd.DataFrame = MockDataFrame
+
+        invalid_df: Any = [1, 2, 3]  # Not a DataFrame
+
+        with patch.dict("sys.modules", {"pandas": mock_pd}):
+            with pytest.raises(ValidationError) as exc_info:
+                FluentPipeline.from_df(invalid_df)
+
+            assert "Expected pandas DataFrame" in str(exc_info.value)
+
+    def test_from_df_raises_error_if_pandas_not_available(self) -> None:
+        """from_df() raises AdapterError if pandas not available."""
+        with patch.dict("sys.modules", {"pandas": None}):
+            with pytest.raises(AdapterError) as exc_info:
+                FluentPipeline.from_df("not_a_df")
+
+            assert "pandas is not installed" in str(exc_info.value)
+
+    def test_from_df_preserves_dataframe_data(self) -> None:
+        """from_df() correctly converts DataFrame columns and values."""
+        try:
+            import pandas as pd
+        except ImportError:
+            pytest.skip("pandas not available")
+
+        df = pd.DataFrame(
+            {
+                "id": [1, 2, 3],
+                "name": ["Alice", "Bob", "Charlie"],
+                "score": [95.5, 87.0, 92.3],
+                "active": [True, False, True],
+            }
+        )
+        pipeline = FluentPipeline.from_df(df)
+
+        source = pipeline._builder._source
+        assert isinstance(source, list)
+        source_list = cast(list[dict[str, Any]], source)
+        assert len(source_list) == 3
+        assert source_list[0]["id"] == 1
+        assert source_list[0]["name"] == "Alice"
+        assert source_list[0]["score"] == 95.5
+        assert source_list[0]["active"] is True
+        assert source_list[1]["active"] is False
 
 
 class TestFluentPipelineTo:

@@ -479,6 +479,231 @@ class TestComplexScenarios:
         assert result is not None
 
 
+class TestDataFrameSource:
+    """Test loading from pandas DataFrames."""
+
+    @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
+    def test_from_df_basic(self, clean_dlt_state: None) -> None:
+        """Test pipeline with pandas DataFrame source."""
+        try:
+            import pandas as pd  # type: ignore[import-untyped]
+        except ImportError:
+            pytest.skip("pandas not available")
+
+        from fldt import FluentPipeline
+
+        df = pd.DataFrame(
+            {
+                "id": [1, 2, 3],
+                "name": ["Alice", "Bob", "Charlie"],
+                "score": [95, 87, 92],
+            }
+        )
+
+        result = (
+            FluentPipeline.from_df(df)
+            .to("duckdb")
+            .with_name("test_from_df_basic")
+            .with_dataset("test_dataframe")
+            .run()
+        )
+
+        assert result is not None
+        assert hasattr(result, "loads_ids") or hasattr(result, "first_run")
+
+    @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
+    def test_from_df_with_transformation(self, clean_dlt_state: None) -> None:
+        """Test DataFrame source with transformation applied."""
+        try:
+            import pandas as pd
+        except ImportError:
+            pytest.skip("pandas not available")
+
+        from fldt import FluentPipeline
+
+        df = pd.DataFrame({"id": [1, 2], "value": [10, 20]})
+
+        def double_value(record: dict[str, Any]) -> dict[str, Any]:
+            """Double the value field."""
+            if "value" in record:
+                return {**record, "value": record["value"] * 2}
+            return record
+
+        result = (
+            FluentPipeline.from_df(df)
+            .add_transformer(double_value)
+            .to("duckdb")
+            .with_name("test_from_df_with_transformation")
+            .with_dataset("test_dataframe_transformed")
+            .run()
+        )
+
+        assert result is not None
+        assert hasattr(result, "loads_ids") or hasattr(result, "first_run")
+
+    @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
+    def test_from_df_empty(self, clean_dlt_state: None) -> None:
+        """Test pipeline with empty DataFrame."""
+        try:
+            import pandas as pd
+        except ImportError:
+            pytest.skip("pandas not available")
+
+        from fldt import FluentPipeline
+
+        df = pd.DataFrame()
+
+        result = (
+            FluentPipeline.from_df(df)
+            .to("duckdb")
+            .with_name("test_from_df_empty")
+            .with_dataset("test_empty_dataframe")
+            .run()
+        )
+
+        assert result is not None
+        assert hasattr(result, "loads_ids") or hasattr(result, "first_run")
+
+
+class TestRawSourceWrapping:
+    """Test wrapping of raw sources (generators, callables, iterables)."""
+
+    @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
+    def test_generator_source(self, clean_dlt_state: None) -> None:
+        """Test pipeline with generator source."""
+        from fldt import FluentPipeline
+
+        def data_generator() -> Any:
+            """Generator that yields data records."""
+            yield {"id": 1, "name": "Alice", "value": 100}
+            yield {"id": 2, "name": "Bob", "value": 200}
+            yield {"id": 3, "name": "Charlie", "value": 300}
+
+        result = (
+            FluentPipeline.from_source(data_generator())
+            .to("duckdb")
+            .with_name("test_generator_source")
+            .with_dataset("test_generator")
+            .run()
+        )
+
+        assert result is not None
+        assert hasattr(result, "loads_ids") or hasattr(result, "first_run")
+
+    @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
+    def test_callable_source(self, clean_dlt_state: None) -> None:
+        """Test pipeline with callable source."""
+        from fldt import FluentPipeline
+
+        def fetch_data() -> list[dict[str, Any]]:
+            """Callable that returns data."""
+            return [
+                {"id": 1, "name": "Product A", "price": 10.99},
+                {"id": 2, "name": "Product B", "price": 20.50},
+                {"id": 3, "name": "Product C", "price": 30.00},
+            ]
+
+        result = (
+            FluentPipeline.from_source(fetch_data)
+            .to("duckdb")
+            .with_name("test_callable_source")
+            .with_dataset("test_callable")
+            .run()
+        )
+
+        assert result is not None
+        assert hasattr(result, "loads_ids") or hasattr(result, "first_run")
+
+    @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
+    def test_lambda_callable_source(self, clean_dlt_state: None) -> None:
+        """Test pipeline with lambda callable source."""
+        from fldt import FluentPipeline
+
+        source_lambda = lambda: [{"id": 1, "data": "test"}]  # noqa: E731
+
+        result = (
+            FluentPipeline.from_source(source_lambda)
+            .to("duckdb")
+            .with_name("test_lambda_callable_source")
+            .with_dataset("test_lambda")
+            .run()
+        )
+
+        assert result is not None
+        assert hasattr(result, "loads_ids") or hasattr(result, "first_run")
+
+    @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
+    def test_set_source(self, clean_dlt_state: None) -> None:
+        """Test pipeline with set source."""
+        from fldt import FluentPipeline
+
+        source_set = {1, 2, 3, 4, 5}
+
+        result = (
+            FluentPipeline.from_source(source_set)
+            .to("duckdb")
+            .with_name("test_set_source")
+            .with_dataset("test_set")
+            .run()
+        )
+
+        assert result is not None
+        assert hasattr(result, "loads_ids") or hasattr(result, "first_run")
+
+    @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
+    def test_generator_with_transformation(self, clean_dlt_state: None) -> None:
+        """Test generator source with transformation applied."""
+        from fldt import FluentPipeline
+
+        def data_generator() -> Any:
+            """Generator that yields data records."""
+            yield {"id": 1, "value": 10}
+            yield {"id": 2, "value": 20}
+
+        def double_value(record: dict[str, Any]) -> dict[str, Any]:
+            """Double the value field."""
+            if "value" in record:
+                return {**record, "value": record["value"] * 2}
+            return record
+
+        result = (
+            FluentPipeline.from_source(data_generator())
+            .add_transformer(double_value)
+            .to("duckdb")
+            .with_name("test_generator_with_transformation")
+            .with_dataset("test_generator_transformed")
+            .run()
+        )
+
+        assert result is not None
+        assert hasattr(result, "loads_ids") or hasattr(result, "first_run")
+
+    @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
+    def test_callable_with_transformation(self, clean_dlt_state: None) -> None:
+        """Test callable source with transformation applied."""
+        from fldt import FluentPipeline
+
+        def fetch_data() -> list[dict[str, Any]]:
+            """Callable that returns data."""
+            return [{"id": 1, "name": "test"}]
+
+        def add_field(record: dict[str, Any]) -> dict[str, Any]:
+            """Add a transformed field."""
+            return {**record, "transformed": True}
+
+        result = (
+            FluentPipeline.from_source(fetch_data)
+            .add_transformer(add_field)
+            .to("duckdb")
+            .with_name("test_callable_with_transformation")
+            .with_dataset("test_callable_transformed")
+            .run()
+        )
+
+        assert result is not None
+        assert hasattr(result, "loads_ids") or hasattr(result, "first_run")
+
+
 class TestErrorHandling:
     """Test error handling in integration scenarios."""
 

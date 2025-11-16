@@ -911,6 +911,206 @@ class TestDltAdapterIncrementalLoading:
         assert result == mock_resource
         mock_dlt.resource.assert_called_once_with(source_dict, name="transformed_data")
 
+    def test_prepare_source_for_pipeline_with_generator(self) -> None:
+        """_prepare_source_for_pipeline wraps generator sources."""
+        mock_dlt = MagicMock()
+        mock_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_resource
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        def data_generator() -> Any:
+            """Generator that yields data."""
+            yield {"id": 1}
+            yield {"id": 2}
+
+        source_gen = data_generator()
+        result = adapter._prepare_source_for_pipeline(source_gen)
+
+        assert result == mock_resource
+        mock_dlt.resource.assert_called_once_with(source_gen, name="transformed_data")
+
+    def test_prepare_source_for_pipeline_with_callable(self) -> None:
+        """_prepare_source_for_pipeline wraps callable sources."""
+        mock_dlt = MagicMock()
+        mock_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_resource
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        def fetch_data() -> list[dict[str, int]]:
+            """Callable that returns data."""
+            return [{"id": 1}, {"id": 2}]
+
+        result = adapter._prepare_source_for_pipeline(fetch_data)
+
+        assert result == mock_resource
+        mock_dlt.resource.assert_called_once_with(fetch_data, name="transformed_data")
+
+    def test_prepare_source_for_pipeline_with_lambda(self) -> None:
+        """_prepare_source_for_pipeline wraps lambda callable sources."""
+        mock_dlt = MagicMock()
+        mock_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_resource
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        source_lambda = lambda: [{"id": 1}]  # noqa: E731
+        result = adapter._prepare_source_for_pipeline(source_lambda)
+
+        assert result == mock_resource
+        mock_dlt.resource.assert_called_once_with(
+            source_lambda, name="transformed_data"
+        )
+
+    def test_prepare_source_for_pipeline_with_set(self) -> None:
+        """_prepare_source_for_pipeline wraps set sources."""
+        mock_dlt = MagicMock()
+        mock_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_resource
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        source_set = {1, 2, 3}
+        result = adapter._prepare_source_for_pipeline(source_set)
+
+        assert result == mock_resource
+        mock_dlt.resource.assert_called_once_with(source_set, name="transformed_data")
+
+    def test_prepare_source_for_pipeline_with_custom_iterable(self) -> None:
+        """_prepare_source_for_pipeline wraps custom iterable classes."""
+        mock_dlt = MagicMock()
+        mock_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_resource
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        class CustomIterable:
+            """Custom iterable class."""
+
+            def __init__(self, data: list[dict[str, int]]) -> None:
+                self.data = data
+
+            def __iter__(self) -> Any:
+                return iter(self.data)
+
+        source_custom = CustomIterable([{"id": 1}, {"id": 2}])
+        result = adapter._prepare_source_for_pipeline(source_custom)
+
+        assert result == mock_resource
+        mock_dlt.resource.assert_called_once_with(
+            source_custom, name="transformed_data"
+        )
+
+    def test_prepare_source_for_pipeline_skips_dlt_resource(self) -> None:
+        """_prepare_source_for_pipeline does not double-wrap dlt resources."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        # Create a mock dlt resource
+        mock_resource = MagicMock()
+        mock_resource.__name__ = "test_resource"
+        mock_resource.name = "test_resource"
+        mock_resource.resources = []  # dlt source attribute
+
+        result = adapter._prepare_source_for_pipeline(mock_resource)
+
+        # Should return the resource unchanged
+        assert result is mock_resource
+        # Should not call dlt.resource to wrap it
+        mock_dlt.resource.assert_not_called()
+
+    def test_prepare_source_for_pipeline_with_none(self) -> None:
+        """_prepare_source_for_pipeline handles None source."""
+        mock_dlt = MagicMock()
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        result = adapter._prepare_source_for_pipeline(None)
+
+        assert result is None
+        mock_dlt.resource.assert_not_called()
+
+    def test_prepare_source_for_pipeline_with_empty_iterables(self) -> None:
+        """_prepare_source_for_pipeline wraps empty iterables."""
+        mock_dlt = MagicMock()
+        mock_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_resource
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        # Test with empty list
+        empty_list: list[Any] = []
+        result = adapter._prepare_source_for_pipeline(empty_list)
+        assert result == mock_resource
+        mock_dlt.resource.assert_called_once_with(empty_list, name="transformed_data")
+
+        mock_dlt.resource.reset_mock()
+        # Test with empty set
+        empty_set: set[Any] = set()
+        result = adapter._prepare_source_for_pipeline(empty_set)
+        assert result == mock_resource
+        mock_dlt.resource.assert_called_once_with(empty_set, name="transformed_data")
+
+    def test_prepare_source_for_pipeline_skips_strings(self) -> None:
+        """_prepare_source_for_pipeline does not wrap strings (they're iterable but shouldn't be wrapped)."""
+        mock_dlt = MagicMock()
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        source_string = "test_string"
+        result = adapter._prepare_source_for_pipeline(source_string)
+
+        assert result is source_string
+        mock_dlt.resource.assert_not_called()
+
+    def test_prepare_source_for_pipeline_skips_primitives(self) -> None:
+        """_prepare_source_for_pipeline does not wrap primitive types."""
+        mock_dlt = MagicMock()
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        # Test with int
+        result = adapter._prepare_source_for_pipeline(42)
+        assert result == 42
+        mock_dlt.resource.assert_not_called()
+
+        mock_dlt.resource.reset_mock()
+        # Test with float
+        result = adapter._prepare_source_for_pipeline(3.14)
+        assert result == 3.14
+        mock_dlt.resource.assert_not_called()
+
+        mock_dlt.resource.reset_mock()
+        # Test with bool
+        result = adapter._prepare_source_for_pipeline(True)
+        assert result is True
+        mock_dlt.resource.assert_not_called()
+
     def test_ensure_dlt_loaded_handles_non_import_error(self) -> None:
         """_ensure_dlt_loaded raises AdapterError for non-ImportError exceptions."""
         adapter = DltAdapter()
