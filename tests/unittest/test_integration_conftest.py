@@ -6,19 +6,22 @@ unit tested without requiring actual database connections.
 
 from __future__ import annotations
 
+from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 
-def _import_conftest_or_skip():
+def _import_conftest_or_skip() -> ModuleType:
     """Import tests.integration.conftest or skip if deps missing."""
     import importlib
 
     try:
-        return importlib.import_module("tests.integration.conftest")
+        module = importlib.import_module("tests.integration.conftest")
     except Exception as exc:  # pragma: no cover - environment guard
         pytest.skip(f"tests.integration.conftest unavailable: {exc}")
+    assert isinstance(module, ModuleType)
+    return module
 
 
 class TestBuildAlembicConfig:
@@ -56,7 +59,7 @@ class TestRequirePostgresOrSkip:
         conftest = _import_conftest_or_skip()
         with patch.object(conftest, "_wait_for_postgres") as mock_wait:
             mock_wait.side_effect = Exception("Connection refused")
-            with pytest.raises(pytest.skip.Exception):  # type: ignore
+            with pytest.raises(pytest.skip.Exception):
                 conftest._require_postgres_or_skip(
                     "postgresql://localhost/test", "test_label"
                 )
