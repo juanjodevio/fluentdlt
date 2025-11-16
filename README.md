@@ -100,15 +100,53 @@ Create pipelines from various sources:
 
 Create pipeline from any dlt-compatible source (dlt sources, callables, iterables, raw data).
 
+**Auto-wrapped source types:**
+- Lists, tuples, dictionaries
+- Sets and other iterables (generators, custom iterable classes)
+- Callables (functions, lambdas) that return data
+
+**Not wrapped (passed through as-is):**
+- Already-wrapped dlt resources and dlt sources
+- Strings (they're iterable but treated as raw values)
+- Primitive types (int, float, bool)
+- None
+
 ```python
-# From raw data
+# From raw data (list, tuple, dict)
 FluentPipeline.from_source([{"id": 1}, {"id": 2}])
+
+# From generator
+def data_gen():
+    yield {"id": 1}
+    yield {"id": 2}
+FluentPipeline.from_source(data_gen())
 
 # From callable
 FluentPipeline.from_source(lambda: fetch_data())
 
-# From dlt source
+# From set
+FluentPipeline.from_source({1, 2, 3})
+
+# From dlt source (already wrapped, passed through)
 FluentPipeline.from_source(my_dlt_source())
+```
+
+#### `FluentPipeline.from_df(df)`
+
+Create pipeline from a pandas DataFrame. The DataFrame is automatically converted to records (list of dictionaries) for dlt processing.
+
+**Parameters:**
+- `df`: pandas DataFrame to load
+
+**Raises:**
+- `ValidationError`: If df is not a pandas DataFrame
+- `AdapterError`: If pandas is not installed
+
+```python
+import pandas as pd
+
+df = pd.DataFrame({"id": [1, 2], "name": ["Alice", "Bob"]})
+FluentPipeline.from_df(df).to("duckdb").run()
 ```
 
 #### `FluentPipeline.from_sql_table(connection, table, schema=None, **kwargs)`

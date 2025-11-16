@@ -5,7 +5,8 @@ using dlt (data load tool) as the underlying pipeline engine.
 """
 
 import logging
-from types import ModuleType
+from collections.abc import Callable, Iterable
+from types import FunctionType, ModuleType
 from typing import Any
 
 from fldt.exceptions import AdapterError, PipelineExecutionError, ValidationError
@@ -187,13 +188,27 @@ class DltAdapter:
                     f"Transformer at index {idx} is not callable: {type(transformer)}"
                 )
 
+        # Ensure dlt is loaded (needed for wrapping generators/callables)
+        self._ensure_dlt_loaded()
+
         # Check if source is a dlt resource/source (not raw Python data)
         is_dlt_resource = self._is_dlt_resource(source)
 
         if is_dlt_resource:
             return self._apply_transformations_to_dlt_resource(source, transformers)
         else:
-            return self._apply_transformations_to_raw_data(source, transformers)
+            # For generators and callables, wrap them first so transformations
+            # can be applied at the record level (dlt resource style)
+            # This prevents generator exhaustion and ensures callables are called
+            wrapped_source = self._wrap_raw_source_if_needed(source)
+            if wrapped_source is not source:
+                # Source was wrapped, apply transformations to dlt resource
+                return self._apply_transformations_to_dlt_resource(
+                    wrapped_source, transformers
+                )
+            else:
+                # Source is raw data (list, dict, tuple, etc.), apply raw transformations
+                return self._apply_transformations_to_raw_data(source, transformers)
 
     def _is_dlt_resource(self, source: Any) -> bool:
         """Check if source is a dlt resource or source object.
@@ -205,7 +220,7 @@ class DltAdapter:
             True if source appears to be a dlt resource/source, False otherwise.
         """
         # Raw Python data types are not dlt resources
-        if isinstance(source, (list, tuple, dict)):
+        if isinstance(source, (list, tuple, dict, str, int, float, bool)):
             # Check if dict is a simple dict (not a dlt source wrapper)
             if isinstance(source, dict):
                 # Simple heuristic: if it's a dict with only string keys
@@ -227,22 +242,35 @@ class DltAdapter:
 
         # Check for dlt-specific attributes/methods
         # dlt resources typically have these characteristics:
-        # - Have a `__name__` attribute
-        # - Are callable or have `resources` attribute
-        # - Have dlt-specific metadata
+        # - Have a `resources` attribute (dlt sources)
+        # - Have `__dlt__` attribute (dlt-specific metadata)
         if hasattr(source, "resources") or hasattr(source, "__dlt__"):
             return True
 
-        # If it's callable and not a simple function (likely a dlt resource)
-        # but exclude simple types
-        if callable(source) and not isinstance(source, (type, type(lambda: None))):
-            # Additional check: dlt resources often have specific attributes
-            if hasattr(source, "__name__") or hasattr(source, "name"):
-                return True
+        # Check for dlt resource wrapper attributes
+        # dlt resources often have these specific attributes that regular
+        # Python functions/objects don't have
+        if hasattr(source, "_pipe") or hasattr(source, "_pipe_data"):
+            return True
 
-        # Default: assume it's a dlt resource if it's not raw Python data
-        # This is safer for SQL/dlt-backed sources
-        return not isinstance(source, (list, tuple, dict, str, int, float, bool))
+        # If it's callable, check more carefully
+        # Regular Python functions have __name__ but dlt resources have additional attributes
+        if callable(source):
+            # Exclude built-in types and simple function types
+            if isinstance(source, type):
+                return False
+            # Check if it's a simple function type (not a dlt resource)
+            if isinstance(source, FunctionType):
+                # Only treat as dlt resource if it has dlt-specific attributes
+                # Regular functions don't have these
+                if hasattr(source, "_pipe") or hasattr(source, "_pipe_data"):
+                    return True
+                return False
+
+        # Default: if we can't determine, assume it's NOT a dlt resource
+        # This allows _prepare_source_for_pipeline to wrap it
+        # Only return True if we have strong evidence it's a dlt resource
+        return False
 
     def _apply_transformations_to_dlt_resource(
         self, source: Any, transformers: list[Any]
@@ -334,6 +362,59 @@ class DltAdapter:
                 f"Failed to apply transformations to dlt resource: {e}"
             ) from e
 
+    def _wrap_raw_source_if_needed(self, source: Any) -> Any:
+        """Wrap generators and callables into dlt.resource if needed.
+
+        This is used before applying transformations to ensure generators
+        and callables are properly wrapped and can be transformed at the
+        record level.
+
+        For generators, we convert them to lists first to avoid exhaustion
+        issues when dlt tries to peek at them during transformation setup.
+
+        Args:
+            source: Source to potentially wrap.
+
+        Returns:
+            Wrapped source if it was a generator/callable, or original source.
+        """
+        assert self._dlt is not None
+
+        # Skip None, strings, primitives
+        if source is None or isinstance(source, (str, int, float, bool)):
+            return source
+
+        # Skip if already a dlt resource
+        if self._is_dlt_resource(source):
+            return source
+
+        # Handle generators: convert to list to avoid exhaustion
+        # Generators can only be iterated once, so if we need to apply
+        # transformations, we convert to list first, then wrap
+        if isinstance(source, Iterable) and not isinstance(
+            source, (list, tuple, dict, str)
+        ):
+            # Check if it's a generator by looking for generator-specific attributes
+            if hasattr(source, "__iter__") and not hasattr(source, "__len__"):
+                # Likely a generator - convert to list to avoid exhaustion
+                logger.debug(
+                    "Converting generator to list to avoid exhaustion during transformations"
+                )
+                source = list(source)
+                # Wrap the list so transformations are applied at record level
+                return self._dlt.resource(source, name="transformed_data")
+            else:
+                # Other iterable (set, etc.) - wrap directly
+                logger.debug("Wrapping iterable source for transformations")
+                return self._dlt.resource(source, name="transformed_data")
+
+        # Wrap callables - dlt will call them and yield results
+        if callable(source):
+            logger.debug("Wrapping callable source for transformations")
+            return self._dlt.resource(source, name="transformed_data")
+
+        return source
+
     def _apply_transformations_to_raw_data(
         self, source: Any, transformers: list[Any]
     ) -> Any:
@@ -370,11 +451,48 @@ class DltAdapter:
         return result
 
     def _prepare_source_for_pipeline(self, source: Any) -> Any:
-        """Ensure the source is acceptable for dlt pipeline execution."""
+        """Ensure the source is acceptable for dlt pipeline execution.
+
+        Wraps raw iterables and callables into dlt.resource, but skips
+        sources that are already dlt resources or dlt sources.
+
+        Args:
+            source: Source to prepare (may be raw data, iterable, callable, or dlt resource).
+
+        Returns:
+            Source wrapped in dlt.resource if needed, or original source if already a dlt resource.
+        """
         assert self._dlt is not None
-        if isinstance(source, (list, tuple, dict)):
+
+        # Skip None sources
+        if source is None:
+            return source
+
+        # Check if source is already a dlt resource/source
+        if self._is_dlt_resource(source):
+            logger.debug("Source is already a dlt resource, skipping wrap")
+            return source
+
+        # Exclude strings (they're iterable but shouldn't be wrapped)
+        if isinstance(source, str):
+            return source
+
+        # Exclude primitive types
+        if isinstance(source, (int, float, bool)):
+            return source
+
+        # Wrap iterables (lists, tuples, dicts, sets, generators, etc.)
+        if isinstance(source, Iterable):
             logger.debug("Wrapping raw iterable source into dlt.resource")
             return self._dlt.resource(source, name="transformed_data")
+
+        # Wrap callables (functions, lambdas, etc.)
+        # Use callable() instead of isinstance() because Callable is a typing protocol
+        if callable(source):
+            logger.debug("Wrapping callable source into dlt.resource")
+            return self._dlt.resource(source, name="transformed_data")
+
+        # For anything else, return as-is (might be a dlt resource we didn't detect)
         return source
 
     def prepare_source_with_incremental(
