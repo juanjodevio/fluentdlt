@@ -188,6 +188,9 @@ class DltAdapter:
                     f"Transformer at index {idx} is not callable: {type(transformer)}"
                 )
 
+        # Ensure dlt is loaded (needed for wrapping generators/callables)
+        self._ensure_dlt_loaded()
+
         # Check if source is a dlt resource/source (not raw Python data)
         is_dlt_resource = self._is_dlt_resource(source)
 
