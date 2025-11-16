@@ -133,13 +133,13 @@ class TestFluentPipelineFromSqlQuery:
 
         # dlt.resource is a decorator: @dlt.resource(name=...) calls dlt.resource(name=...)
         # which returns a decorator function that then wraps the actual function
-        def identity_decorator(func):
+        def identity_decorator(func: Any) -> Any:
             return func
 
         mock_dlt_resource.return_value = identity_decorator
 
         # dlt.source is also a decorator - when decorated function is called, it returns resources
-        def source_func():
+        def source_func() -> Any:
             return identity_decorator(lambda: None)
 
         mock_dlt_source.return_value = lambda: source_func
@@ -176,7 +176,7 @@ class TestFluentPipelineFromSqlQuery:
         mock_create_engine.return_value = mock_engine
 
         # dlt.resource is a decorator, so it returns a decorator function
-        def identity_decorator(func):
+        def identity_decorator(func: Any) -> Any:
             return func
 
         mock_dlt_resource.return_value = identity_decorator
@@ -203,7 +203,7 @@ class TestFluentPipelineFromSqlQuery:
         mock_engine = Mock(spec=Engine)
 
         # dlt.resource is a decorator, so it returns a decorator function
-        def identity_decorator(func):
+        def identity_decorator(func: Any) -> Any:
             return func
 
         mock_dlt_resource.return_value = identity_decorator
