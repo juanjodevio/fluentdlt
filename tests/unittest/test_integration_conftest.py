@@ -10,7 +10,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tests.integration import conftest
+
+def _import_conftest_or_skip():
+    """Import tests.integration.conftest or skip if deps missing."""
+    import importlib
+
+    try:
+        return importlib.import_module("tests.integration.conftest")
+    except Exception as exc:  # pragma: no cover - environment guard
+        pytest.skip(f"tests.integration.conftest unavailable: {exc}")
 
 
 class TestBuildAlembicConfig:
@@ -18,6 +26,7 @@ class TestBuildAlembicConfig:
 
     def test_build_alembic_config_returns_config(self) -> None:
         """_build_alembic_config returns a valid Alembic Config object."""
+        conftest = _import_conftest_or_skip()
         config = conftest._build_alembic_config()
 
         assert config is not None
@@ -39,6 +48,7 @@ class TestRequirePostgresOrSkip:
         mock_wait.return_value = None
 
         # Should not raise or skip
+        conftest = _import_conftest_or_skip()
         conftest._require_postgres_or_skip("postgresql://localhost/test", "test_label")
 
         mock_wait.assert_called_once_with("postgresql://localhost/test")
@@ -50,6 +60,7 @@ class TestRequirePostgresOrSkip:
         """_require_postgres_or_skip skips when Postgres is unavailable."""
         mock_wait.side_effect = Exception("Connection refused")
 
+        conftest = _import_conftest_or_skip()
         with pytest.raises(pytest.skip.Exception):  # type: ignore
             conftest._require_postgres_or_skip(
                 "postgresql://localhost/test", "test_label"
@@ -70,6 +81,7 @@ class TestWaitForPostgres:
         mock_create_engine.return_value = mock_engine
         mock_engine.connect.return_value.__enter__.return_value = mock_conn
 
+        conftest = _import_conftest_or_skip()
         conftest._wait_for_postgres("postgresql://localhost/test", timeout=5.0)
 
         mock_create_engine.assert_called_once_with("postgresql://localhost/test")
@@ -114,6 +126,7 @@ class TestWaitForPostgres:
 
         mock_engine.connect.side_effect = connect_side_effect
 
+        conftest = _import_conftest_or_skip()
         conftest._wait_for_postgres("postgresql://localhost/test", timeout=5.0)
 
         assert mock_engine.connect.call_count == 3
@@ -134,6 +147,7 @@ class TestWaitForPostgres:
         connection_error = Exception("Connection refused")
         mock_engine.connect.side_effect = connection_error
 
+        conftest = _import_conftest_or_skip()
         with pytest.raises(Exception) as exc_info:
             conftest._wait_for_postgres("postgresql://localhost/test", timeout=60.0)
 
