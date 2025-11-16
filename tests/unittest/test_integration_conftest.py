@@ -138,4 +138,3 @@ class TestWaitForPostgres:
             conftest._wait_for_postgres("postgresql://localhost/test", timeout=60.0)
 
         assert exc_info.value is connection_error
-
