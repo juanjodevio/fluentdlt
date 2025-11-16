@@ -68,9 +68,10 @@ class TestWaitForPostgres:
     def test_wait_for_postgres_succeeds_on_first_try(self) -> None:
         """_wait_for_postgres returns immediately if connection succeeds."""
         conftest = _import_conftest_or_skip()
-        with patch.object(conftest, "create_engine") as mock_create_engine, patch.object(
-            conftest.time, "sleep"
-        ) as mock_sleep:
+        with (
+            patch.object(conftest, "create_engine") as mock_create_engine,
+            patch.object(conftest.time, "sleep") as mock_sleep,
+        ):
             mock_engine = MagicMock()
             mock_conn = MagicMock()
             mock_create_engine.return_value = mock_engine
@@ -85,9 +86,11 @@ class TestWaitForPostgres:
     def test_wait_for_postgres_retries_on_failure(self) -> None:
         """_wait_for_postgres retries until connection succeeds."""
         conftest = _import_conftest_or_skip()
-        with patch.object(conftest, "create_engine") as mock_create_engine, patch.object(
-            conftest.time, "sleep"
-        ) as mock_sleep, patch.object(conftest.time, "time") as mock_time:
+        with (
+            patch.object(conftest, "create_engine") as mock_create_engine,
+            patch.object(conftest.time, "sleep") as mock_sleep,
+            patch.object(conftest.time, "time") as mock_time,
+        ):
             # Simulate time progression - provide enough values for all iterations
             call_count = [0]
 
@@ -127,9 +130,11 @@ class TestWaitForPostgres:
     def test_wait_for_postgres_raises_on_timeout(self) -> None:
         """_wait_for_postgres raises last exception if timeout exceeded."""
         conftest = _import_conftest_or_skip()
-        with patch.object(conftest, "create_engine") as mock_create_engine, patch.object(
-            conftest.time, "sleep"
-        ), patch.object(conftest.time, "time") as mock_time:
+        with (
+            patch.object(conftest, "create_engine") as mock_create_engine,
+            patch.object(conftest.time, "sleep"),
+            patch.object(conftest.time, "time") as mock_time,
+        ):
             # Simulate time progression beyond timeout
             mock_time.side_effect = [0.0, 1.0, 61.0]  # Start, retry, timeout
 
@@ -139,8 +144,6 @@ class TestWaitForPostgres:
             mock_engine.connect.side_effect = connection_error
 
             with pytest.raises(Exception) as exc_info:
-                conftest._wait_for_postgres(
-                    "postgresql://localhost/test", timeout=60.0
-                )
+                conftest._wait_for_postgres("postgresql://localhost/test", timeout=60.0)
 
             assert exc_info.value is connection_error
