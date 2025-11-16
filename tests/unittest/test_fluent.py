@@ -118,50 +118,198 @@ class TestFluentPipelineFromSqlTable:
 class TestFluentPipelineFromSqlQuery:
     """Test from_sql_query factory method."""
 
-    @patch("dlt.sources.sql_database.sql_database")
-    def test_from_sql_query_with_query(self, mock_sql_database: Mock) -> None:
+    @patch("sqlalchemy.create_engine")
+    @patch("dlt.source")
+    @patch("dlt.resource")
+    def test_from_sql_query_with_query(
+        self,
+        mock_dlt_resource: Mock,
+        mock_dlt_source: Mock,
+        mock_create_engine: Mock,
+    ) -> None:
         """from_sql_query() creates pipeline from SQL query."""
-        mock_source = Mock()
-        mock_source.with_resources.return_value = "mock_source_with_query"
-        mock_sql_database.return_value = mock_source
+        mock_engine = Mock()
+        mock_create_engine.return_value = mock_engine
+
+        # dlt.resource is a decorator: @dlt.resource(name=...) calls dlt.resource(name=...)
+        # which returns a decorator function that then wraps the actual function
+        def identity_decorator(func: Any) -> Any:
+            return func
+
+        mock_dlt_resource.return_value = identity_decorator
+
+        # dlt.source is also a decorator - when decorated function is called, it returns resources
+        def source_func() -> Any:
+            return identity_decorator(lambda: None)
+
+        mock_dlt_source.return_value = lambda: source_func
 
         query = "SELECT * FROM users WHERE active = true"
-        pipeline = FluentPipeline.from_sql_query("postgresql://localhost/db", query)
-
-        assert pipeline._builder._source == "mock_source_with_query"
-        mock_sql_database.assert_called_once_with(
-            credentials="postgresql://localhost/db"
+        pipeline = FluentPipeline.from_sql_query(
+            "postgresql://localhost/db", query, table_name="active_users"
         )
-        mock_source.with_resources.assert_called_once_with(query)
 
-    @patch("dlt.sources.sql_database.sql_database")
-    def test_from_sql_query_with_kwargs(self, mock_sql_database: Mock) -> None:
-        """from_sql_query() passes kwargs to dlt."""
-        mock_source = Mock()
-        mock_source.with_resources.return_value = "mock_source"
-        mock_sql_database.return_value = mock_source
+        assert pipeline._builder._source is not None
+        mock_create_engine.assert_called_once_with("postgresql://localhost/db")
+        # Verify resource was created with correct table_name
+        mock_dlt_resource.assert_called_once()
+        call_kwargs = (
+            mock_dlt_resource.call_args[1]
+            if len(mock_dlt_resource.call_args) > 1
+            else {}
+        )
+        assert call_kwargs.get("name") == "active_users"
+        # Verify source was created
+        mock_dlt_source.assert_called_once()
+
+    @patch("sqlalchemy.create_engine")
+    @patch("dlt.source")
+    @patch("dlt.resource")
+    def test_from_sql_query_with_kwargs(
+        self,
+        mock_dlt_resource: Mock,
+        mock_dlt_source: Mock,
+        mock_create_engine: Mock,
+    ) -> None:
+        """from_sql_query() creates source with custom resource."""
+        mock_engine = Mock()
+        mock_create_engine.return_value = mock_engine
+
+        # dlt.resource is a decorator, so it returns a decorator function
+        def identity_decorator(func: Any) -> Any:
+            return func
+
+        mock_dlt_resource.return_value = identity_decorator
+        mock_dlt_source.return_value = lambda: identity_decorator(lambda: None)
 
         FluentPipeline.from_sql_query(
-            "postgresql://localhost/db", "SELECT * FROM users", backend="pyodbc"
+            "postgresql://localhost/db",
+            "SELECT * FROM users",
+            table_name="users",
+            backend="pyodbc",
         )
 
-        call_kwargs = mock_sql_database.call_args[1]
-        assert call_kwargs["backend"] == "pyodbc"
+        # Verify source was created (kwargs are not passed to sql_database anymore)
+        mock_dlt_source.assert_called_once()
+
+    @patch("dlt.source")
+    @patch("dlt.resource")
+    def test_from_sql_query_with_engine_object(
+        self, mock_dlt_resource: Mock, mock_dlt_source: Mock
+    ) -> None:
+        """from_sql_query() works with SQLAlchemy Engine object."""
+        from sqlalchemy.engine import Engine
+
+        mock_engine = Mock(spec=Engine)
+
+        # dlt.resource is a decorator, so it returns a decorator function
+        def identity_decorator(func: Any) -> Any:
+            return func
+
+        mock_dlt_resource.return_value = identity_decorator
+        mock_dlt_source.return_value = lambda: identity_decorator(lambda: None)
+
+        query = "SELECT * FROM users"
+        pipeline = FluentPipeline.from_sql_query(mock_engine, query, table_name="users")
+
+        assert pipeline._builder._source is not None
+        # Verify source was created (no sql_database call)
+        mock_dlt_source.assert_called_once()
 
     def test_from_sql_query_validates_query(self) -> None:
         """from_sql_query() validates query is non-empty string."""
         with pytest.raises(ValidationError) as exc_info:
-            FluentPipeline.from_sql_query("conn", "")
+            FluentPipeline.from_sql_query("conn", "", table_name="table")
 
         assert "non-empty string" in str(exc_info.value)
+
+    def test_from_sql_query_validates_table_name(self) -> None:
+        """from_sql_query() validates table_name is non-empty string."""
+        with pytest.raises(ValidationError) as exc_info:
+            FluentPipeline.from_sql_query("conn", "SELECT 1", table_name="")
+
+        assert "table_name must be a non-empty string" in str(exc_info.value)
 
     def test_from_sql_query_raises_error_if_dlt_not_available(self) -> None:
         """from_sql_query() raises AdapterError if dlt not available."""
         with patch.dict("sys.modules", {"dlt.sources.sql_database": None}):
             with pytest.raises(AdapterError) as exc_info:
-                FluentPipeline.from_sql_query("conn", "SELECT 1")
+                FluentPipeline.from_sql_query("conn", "SELECT 1", table_name="table")
 
             assert "not available" in str(exc_info.value)
+
+    def test_from_sql_query_validates_invalid_connection_type(self) -> None:
+        """from_sql_query() validates connection is Engine or string."""
+        invalid_connection: Any = 123  # Not a string or Engine
+
+        with pytest.raises(ValidationError) as exc_info:
+            FluentPipeline.from_sql_query(
+                invalid_connection, "SELECT 1", table_name="table"
+            )
+
+        assert "Connection must be a SQLAlchemy Engine" in str(exc_info.value)
+
+    def test_from_sql_query_validates_table_name_not_string(self) -> None:
+        """from_sql_query() validates table_name is a string."""
+        invalid_table_name: Any = 123  # Not a string
+
+        with pytest.raises(ValidationError) as exc_info:
+            FluentPipeline.from_sql_query(
+                "conn", "SELECT 1", table_name=invalid_table_name
+            )
+
+        assert "table_name must be a non-empty string" in str(exc_info.value)
+
+    def test_from_sql_query_validates_query_not_string(self) -> None:
+        """from_sql_query() validates query is a string."""
+        invalid_query: Any = 123  # Not a string
+
+        with pytest.raises(ValidationError) as exc_info:
+            FluentPipeline.from_sql_query("conn", invalid_query, table_name="table")
+
+        assert "Query must be a non-empty string" in str(exc_info.value)
+
+    def test_from_sql_query_executes_query_with_real_dlt(self) -> None:
+        """from_sql_query() creates and executes query with real dlt (no mocks)."""
+        from sqlalchemy import create_engine, text
+
+        # Create a real engine for SQLite in-memory
+        engine = create_engine("sqlite:///:memory:")
+        with engine.connect() as conn:
+            conn.execute(text("CREATE TABLE test (id INTEGER, name TEXT)"))
+            conn.execute(text("INSERT INTO test VALUES (1, 'Alice'), (2, 'Bob')"))
+            conn.commit()
+
+        # Create pipeline without mocks - this will execute the real code
+        pipeline = FluentPipeline.from_sql_query(
+            engine, "SELECT * FROM test WHERE id = 1", table_name="test_results"
+        )
+
+        # Verify the source was created
+        assert pipeline._builder._source is not None
+
+        # Access the source's resources to execute the query
+        # This will execute lines 234-238 (the query execution)
+        source = pipeline._builder._source
+
+        # Get resources from the source
+        if hasattr(source, "resources"):
+            resources = source.resources
+            # Find the test_results resource
+            if "test_results" in resources:
+                resource = resources["test_results"]
+                # Execute the resource generator to cover the query execution
+                rows = list(resource())
+                assert len(rows) == 1
+                assert rows[0]["id"] == 1
+                assert rows[0]["name"] == "Alice"
+            else:
+                # Try to get the first resource if name doesn't match
+                resource = next(iter(resources.values()))
+                rows = list(resource())
+                assert len(rows) == 1
+                assert rows[0]["id"] == 1
+                assert rows[0]["name"] == "Alice"
 
 
 class TestFluentPipelineFromSqlDatabase:
