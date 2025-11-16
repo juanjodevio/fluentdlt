@@ -530,6 +530,29 @@ uv sync --group integration
 pytest tests/integration -m integration
 ```
 
+### Postgres <-> Postgres (Docker)
+
+```bash
+# Start dedicated source/destination databases
+docker compose -f docker-compose.pg.yml up -d
+
+# (Optional) override defaults
+export SRC_PG_URL="postgresql+psycopg2://fldt:fldt@localhost:5532/fldt_source"
+export DEST_PG_URL="postgresql+psycopg2://fldt:fldt@localhost:5542/fldt_dest"
+
+# Run Postgres-specific integration suite
+uv run --group integration pytest tests/integration/test_pg_to_pg.py -m postgres
+
+# Inspect logs if something fails
+docker compose -f docker-compose.pg.yml logs pg-source
+docker compose -f docker-compose.pg.yml logs pg-dest
+
+# Stop and clean volumes
+docker compose -f docker-compose.pg.yml down -v
+```
+
+See `docs/pg_to_pg_integration.md` for the detailed scenario outline.
+
 **With PostgreSQL (Optional):**
 ```bash
 # Set PostgreSQL connection

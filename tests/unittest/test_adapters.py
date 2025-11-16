@@ -398,7 +398,7 @@ class TestDltAdapterIncrementalLoading:
         assert result == mock_wrapped_source
         mock_dlt.sources.incremental.assert_called_once()
         call_args = mock_dlt.sources.incremental.call_args[1]
-        assert call_args["cursor_path"] == "updated_at"
+        assert call_args["cursor_path"] == "$.updated_at"
         assert call_args["initial_value"] == "2024-01-01"
         assert call_args["primary_key"] == "id"
         source.with_incremental.assert_called_once_with(mock_incremental)
@@ -427,7 +427,7 @@ class TestDltAdapterIncrementalLoading:
 
         assert result == mock_resource
         call_args = mock_dlt.sources.incremental.call_args[1]
-        assert call_args["cursor_path"] == "updated_at"
+        assert call_args["cursor_path"] == "$.updated_at"
         assert "initial_value" not in call_args
         assert "primary_key" not in call_args
         mock_dlt.resource.assert_called_once()
@@ -457,3 +457,89 @@ class TestDltAdapterIncrementalLoading:
 
         assert "Failed to configure incremental loading" in str(exc_info.value)
         assert isinstance(exc_info.value.__cause__, Exception)
+
+    def test_prepare_source_with_non_string_cursor_field(self) -> None:
+        """prepare_source_with_incremental handles non-string cursor_field."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+        mock_incremental = MagicMock()
+        mock_dlt.sources.incremental.return_value = mock_incremental
+        mock_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_resource
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        source = [{"updated_at": "2024-01-01"}]
+        # cursor_field as non-string (list or other type)
+        incremental_config: IncrementalConfig = {
+            "cursor_field": ["$.updated_at", "$.id"]  # type: ignore
+        }
+
+        config_copy = cast(IncrementalConfig, dict(incremental_config))
+        result = adapter.prepare_source_with_incremental(source, config_copy)
+
+        assert result == mock_resource
+        call_args = mock_dlt.sources.incremental.call_args[1]
+        assert call_args["cursor_path"] == ["$.updated_at", "$.id"]
+        mock_dlt.resource.assert_called_once()
+
+    def test_prepare_source_for_pipeline_with_non_iterable_source(self) -> None:
+        """_prepare_source_for_pipeline returns source unchanged if not iterable."""
+        mock_dlt = MagicMock()
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        # Source that is not list, tuple, or dict (e.g., a dlt resource object)
+        mock_source = MagicMock()
+        result = adapter._prepare_source_for_pipeline(mock_source)
+
+        assert result is mock_source
+        mock_dlt.resource.assert_not_called()
+
+    def test_prepare_source_for_pipeline_with_iterable_source(self) -> None:
+        """_prepare_source_for_pipeline wraps list/tuple/dict sources."""
+        mock_dlt = MagicMock()
+        mock_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_resource
+
+        adapter = DltAdapter()
+        with patch.dict("sys.modules", {"dlt": mock_dlt}):
+            adapter._ensure_dlt_loaded()
+
+        # Test with list
+        source_list = [{"id": 1}]
+        result = adapter._prepare_source_for_pipeline(source_list)
+        assert result == mock_resource
+        mock_dlt.resource.assert_called_once_with(source_list, name="transformed_data")
+
+        mock_dlt.resource.reset_mock()
+        # Test with tuple
+        source_tuple = ({"id": 1},)
+        result = adapter._prepare_source_for_pipeline(source_tuple)
+        assert result == mock_resource
+        mock_dlt.resource.assert_called_once_with(source_tuple, name="transformed_data")
+
+        mock_dlt.resource.reset_mock()
+        # Test with dict
+        source_dict = {"table": [{"id": 1}]}
+        result = adapter._prepare_source_for_pipeline(source_dict)
+        assert result == mock_resource
+        mock_dlt.resource.assert_called_once_with(source_dict, name="transformed_data")
+
+    def test_ensure_dlt_loaded_handles_non_import_error(self) -> None:
+        """_ensure_dlt_loaded raises AdapterError for non-ImportError exceptions."""
+        adapter = DltAdapter()
+
+        # Mock import to raise a non-ImportError exception
+        with patch("builtins.__import__", side_effect=RuntimeError("Unexpected error")):
+            with pytest.raises(AdapterError) as exc_info:
+                adapter._ensure_dlt_loaded()
+
+        assert "Failed to load dlt modules" in str(exc_info.value)
+        assert isinstance(exc_info.value.__cause__, RuntimeError)

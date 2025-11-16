@@ -86,9 +86,50 @@ jobs:
       - name: Run integration tests
         run: uv run pytest tests/integration -m integration
 
+  pg-integration-tests:
+    runs-on: ubuntu-latest
+    needs:
+      - unit-tests
+      - lint
+    env:
+      SRC_PG_URL: postgresql+psycopg2://fldt:fldt@localhost:5532/fldt_source
+      DEST_PG_URL: postgresql+psycopg2://fldt:fldt@localhost:5542/fldt_dest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Install integration dependencies
+        run: uv sync --frozen --group integration
+
+      - name: Start Postgres containers
+        run: docker compose -f docker-compose.pg.yml up -d
+
+      - name: Run pg<->pg integration tests
+        run: uv run --group integration pytest tests/integration/test_pg_to_pg.py -m postgres
+
+      - name: Postgres logs (on failure)
+        if: failure()
+        run: docker compose -f docker-compose.pg.yml logs
+
+      - name: Stop Postgres containers
+        if: always()
+        run: docker compose -f docker-compose.pg.yml down -v
+
   sonarcloud:
     runs-on: ubuntu-latest
-    needs: integration-tests
+    needs:
+      - integration-tests
+      - pg-integration-tests
     steps:
       - uses: actions/checkout@v4
 

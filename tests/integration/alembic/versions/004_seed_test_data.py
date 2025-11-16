@@ -22,11 +22,11 @@ def upgrade() -> None:
     op.execute(
         """
         INSERT INTO users (id, name, email, age, is_active, updated_at) VALUES
-        (1, 'Alice', 'alice@example.com', 28, 1, '2024-01-01 10:00:00'),
-        (2, 'Bob', 'bob@example.com', 35, 1, '2024-01-02 10:00:00'),
-        (3, 'Charlie', 'charlie@example.com', 42, 0, '2024-01-03 10:00:00'),
-        (4, 'Diana', 'diana@example.com', 31, 1, '2024-01-04 10:00:00'),
-        (5, 'Eve', 'eve@example.com', 29, 1, '2024-01-05 10:00:00')
+        (1, 'Alice', 'alice@example.com', 28, TRUE, '2024-01-01 10:00:00'),
+        (2, 'Bob', 'bob@example.com', 35, TRUE, '2024-01-02 10:00:00'),
+        (3, 'Charlie', 'charlie@example.com', 42, FALSE, '2024-01-03 10:00:00'),
+        (4, 'Diana', 'diana@example.com', 31, TRUE, '2024-01-04 10:00:00'),
+        (5, 'Eve', 'eve@example.com', 29, TRUE, '2024-01-05 10:00:00')
         """
     )
 

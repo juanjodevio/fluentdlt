@@ -218,3 +218,4 @@ tests/.test_dbs/
 # SonarCloud artifacts
 .scannerwork/
 coverage.xml
+.cursor/plans/**.plan.md
