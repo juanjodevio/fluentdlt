@@ -420,10 +420,13 @@ class DltAdapter:
             )
 
             incremental_args: dict[str, Any] = {"cursor_path": cursor_path}
-            if "initial_value" in incremental_config:
-                incremental_args["initial_value"] = incremental_config["initial_value"]
-            if "primary_key" in incremental_config:
-                incremental_args["primary_key"] = incremental_config["primary_key"]
+
+            # Forward all keys from incremental_config except cursor_field (converted to cursor_path)
+            for key, value in incremental_config.items():
+                if key == "cursor_field":
+                    continue
+                incremental_args[key] = value
+
             incremental = self._dlt_sources.incremental(**incremental_args)
 
             if hasattr(source, "with_incremental") and callable(

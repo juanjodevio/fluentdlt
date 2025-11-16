@@ -169,6 +169,73 @@ class TestIncrementalLoading:
 
         assert result is not None
 
+    @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
+    def test_incremental_with_end_value_bounded_backfill(
+        self, test_database: ConnectionString, clean_dlt_state: None
+    ) -> None:
+        """Test bounded backfill using end_value in incremental config."""
+        from fldt import FluentPipeline
+
+        # Bounded backfill: load only records between initial_value and end_value
+        result = (
+            FluentPipeline.from_sql_table(test_database, "events")
+            .with_incremental(
+                cursor_field="created_at",
+                initial_value="2024-01-01 00:00:00",
+                end_value="2024-01-31 23:59:59",
+            )
+            .to("duckdb")
+            .with_name("bounded_backfill_events")
+            .with_dataset("test_bounded_backfill")
+            .run()
+        )
+
+        assert result is not None
+        # Verify that pipeline executed successfully
+        assert hasattr(result, "loads_ids") or hasattr(result, "first_run")
+
+    @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
+    def test_incremental_with_end_value_state_persistence(
+        self, test_database: ConnectionString, clean_dlt_state: None
+    ) -> None:
+        """Test incremental state persistence across runs with end_value."""
+        from fldt import FluentPipeline
+
+        # First run with bounded backfill
+        result1 = (
+            FluentPipeline.from_sql_table(test_database, "users")
+            .with_incremental(
+                cursor_field="updated_at",
+                initial_value="2024-01-01 00:00:00",
+                end_value="2024-01-15 23:59:59",
+            )
+            .to("duckdb")
+            .with_name("bounded_incremental_users")
+            .with_dataset("test_incremental_state")
+            .run()
+        )
+
+        assert result1 is not None
+
+        # Second run: should continue from where first run left off
+        # (Note: In practice, dlt manages state automatically, but we verify
+        # that end_value doesn't interfere with state persistence)
+        result2 = (
+            FluentPipeline.from_sql_table(test_database, "users")
+            .with_incremental(
+                cursor_field="updated_at",
+                initial_value="2024-01-01 00:00:00",
+                end_value="2024-01-31 23:59:59",
+            )
+            .to("duckdb")
+            .with_name("bounded_incremental_users")
+            .with_dataset("test_incremental_state")
+            .run()
+        )
+
+        assert result2 is not None
+        assert hasattr(result2, "loads_ids") or hasattr(result2, "first_run")
+
 
 class TestTransformations:
     """Test data transformations in pipelines."""

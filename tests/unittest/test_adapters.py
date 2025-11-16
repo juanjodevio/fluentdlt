@@ -650,6 +650,7 @@ class TestDltAdapterIncrementalLoading:
         assert call_args["cursor_path"] == "$.updated_at"
         assert call_args["initial_value"] == "2024-01-01"
         assert call_args["primary_key"] == "id"
+        assert call_args["allow_external_schedulers"] is False
         source.with_incremental.assert_called_once_with(mock_incremental)
         mock_dlt.resource.assert_not_called()
 
@@ -735,6 +736,135 @@ class TestDltAdapterIncrementalLoading:
         call_args = mock_dlt.sources.incremental.call_args[1]
         assert call_args["cursor_path"] == ["$.updated_at", "$.id"]
         mock_dlt.resource.assert_called_once()
+
+    def test_prepare_source_with_end_value(self) -> None:
+        """prepare_source_with_incremental forwards end_value to dlt."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+        mock_incremental = MagicMock()
+        mock_dlt.sources.incremental.return_value = mock_incremental
+        mock_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_resource
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        source = [{"updated_at": "2024-01-01"}]
+        incremental_config: IncrementalConfig = {
+            "cursor_field": "updated_at",
+            "initial_value": "2024-01-01",
+            "end_value": "2024-12-31",
+        }
+
+        config_copy = cast(IncrementalConfig, dict(incremental_config))
+        result = adapter.prepare_source_with_incremental(source, config_copy)
+
+        assert result == mock_resource
+        call_args = mock_dlt.sources.incremental.call_args[1]
+        assert call_args["cursor_path"] == "$.updated_at"
+        assert call_args["initial_value"] == "2024-01-01"
+        assert call_args["end_value"] == "2024-12-31"
+
+    def test_prepare_source_with_allow_external_schedulers(self) -> None:
+        """prepare_source_with_incremental forwards allow_external_schedulers to dlt."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+        mock_incremental = MagicMock()
+        mock_dlt.sources.incremental.return_value = mock_incremental
+        mock_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_resource
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        source = [{"updated_at": "2024-01-01"}]
+        incremental_config: IncrementalConfig = {
+            "cursor_field": "updated_at",
+            "allow_external_schedulers": True,
+        }
+
+        config_copy = cast(IncrementalConfig, dict(incremental_config))
+        result = adapter.prepare_source_with_incremental(source, config_copy)
+
+        assert result == mock_resource
+        call_args = mock_dlt.sources.incremental.call_args[1]
+        assert call_args["cursor_path"] == "$.updated_at"
+        assert call_args["allow_external_schedulers"] is True
+
+    def test_prepare_source_with_custom_kwargs(self) -> None:
+        """prepare_source_with_incremental forwards custom kwargs to dlt."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+        mock_incremental = MagicMock()
+        mock_dlt.sources.incremental.return_value = mock_incremental
+        mock_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_resource
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        source = [{"updated_at": "2024-01-01"}]
+        # Include custom kwargs that aren't in IncrementalConfig type
+        incremental_config = {
+            "cursor_field": "updated_at",
+            "initial_value": "2024-01-01",
+            "custom_option": "custom_value",
+            "another_option": 42,
+        }
+
+        config_copy = cast(IncrementalConfig, dict(incremental_config))
+        result = adapter.prepare_source_with_incremental(source, config_copy)
+
+        assert result == mock_resource
+        call_args = mock_dlt.sources.incremental.call_args[1]
+        assert call_args["cursor_path"] == "$.updated_at"
+        assert call_args["initial_value"] == "2024-01-01"
+        assert call_args["custom_option"] == "custom_value"
+        assert call_args["another_option"] == 42
+
+    def test_prepare_source_with_all_incremental_fields(self) -> None:
+        """prepare_source_with_incremental forwards all incremental config fields."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+        mock_incremental = MagicMock()
+        mock_dlt.sources.incremental.return_value = mock_incremental
+        mock_resource = MagicMock()
+        mock_dlt.resource.return_value = mock_resource
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        source = [{"updated_at": "2024-01-01"}]
+        incremental_config: IncrementalConfig = {
+            "cursor_field": "updated_at",
+            "initial_value": "2024-01-01",
+            "end_value": "2024-12-31",
+            "primary_key": "id",
+            "allow_external_schedulers": True,
+        }
+
+        config_copy = cast(IncrementalConfig, dict(incremental_config))
+        result = adapter.prepare_source_with_incremental(source, config_copy)
+
+        assert result == mock_resource
+        call_args = mock_dlt.sources.incremental.call_args[1]
+        assert call_args["cursor_path"] == "$.updated_at"
+        assert call_args["initial_value"] == "2024-01-01"
+        assert call_args["end_value"] == "2024-12-31"
+        assert call_args["primary_key"] == "id"
+        assert call_args["allow_external_schedulers"] is True
 
     def test_prepare_source_for_pipeline_with_non_iterable_source(self) -> None:
         """_prepare_source_for_pipeline returns source unchanged if not iterable."""
