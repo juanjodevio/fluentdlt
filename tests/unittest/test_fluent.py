@@ -238,6 +238,79 @@ class TestFluentPipelineFromSqlQuery:
 
             assert "not available" in str(exc_info.value)
 
+    def test_from_sql_query_validates_invalid_connection_type(self) -> None:
+        """from_sql_query() validates connection is Engine or string."""
+        invalid_connection: Any = 123  # Not a string or Engine
+
+        with pytest.raises(ValidationError) as exc_info:
+            FluentPipeline.from_sql_query(
+                invalid_connection, "SELECT 1", table_name="table"
+            )
+
+        assert "Connection must be a SQLAlchemy Engine" in str(exc_info.value)
+
+    def test_from_sql_query_validates_table_name_not_string(self) -> None:
+        """from_sql_query() validates table_name is a string."""
+        invalid_table_name: Any = 123  # Not a string
+
+        with pytest.raises(ValidationError) as exc_info:
+            FluentPipeline.from_sql_query(
+                "conn", "SELECT 1", table_name=invalid_table_name
+            )
+
+        assert "table_name must be a non-empty string" in str(exc_info.value)
+
+    def test_from_sql_query_validates_query_not_string(self) -> None:
+        """from_sql_query() validates query is a string."""
+        invalid_query: Any = 123  # Not a string
+
+        with pytest.raises(ValidationError) as exc_info:
+            FluentPipeline.from_sql_query("conn", invalid_query, table_name="table")
+
+        assert "Query must be a non-empty string" in str(exc_info.value)
+
+    def test_from_sql_query_executes_query_with_real_dlt(self) -> None:
+        """from_sql_query() creates and executes query with real dlt (no mocks)."""
+        from sqlalchemy import create_engine, text
+
+        # Create a real engine for SQLite in-memory
+        engine = create_engine("sqlite:///:memory:")
+        with engine.connect() as conn:
+            conn.execute(text("CREATE TABLE test (id INTEGER, name TEXT)"))
+            conn.execute(text("INSERT INTO test VALUES (1, 'Alice'), (2, 'Bob')"))
+            conn.commit()
+
+        # Create pipeline without mocks - this will execute the real code
+        pipeline = FluentPipeline.from_sql_query(
+            engine, "SELECT * FROM test WHERE id = 1", table_name="test_results"
+        )
+
+        # Verify the source was created
+        assert pipeline._builder._source is not None
+
+        # Access the source's resources to execute the query
+        # This will execute lines 234-238 (the query execution)
+        source = pipeline._builder._source
+
+        # Get resources from the source
+        if hasattr(source, "resources"):
+            resources = source.resources
+            # Find the test_results resource
+            if "test_results" in resources:
+                resource = resources["test_results"]
+                # Execute the resource generator to cover the query execution
+                rows = list(resource())
+                assert len(rows) == 1
+                assert rows[0]["id"] == 1
+                assert rows[0]["name"] == "Alice"
+            else:
+                # Try to get the first resource if name doesn't match
+                resource = next(iter(resources.values()))
+                rows = list(resource())
+                assert len(rows) == 1
+                assert rows[0]["id"] == 1
+                assert rows[0]["name"] == "Alice"
+
 
 class TestFluentPipelineFromSqlDatabase:
     """Test from_sql_database factory method."""
