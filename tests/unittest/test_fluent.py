@@ -398,6 +398,7 @@ class TestFluentPipelineFromDf:
 
     def test_from_df_validates_dataframe_type(self) -> None:
         """from_df() raises ValidationError for non-DataFrame input."""
+
         # Create a mock pandas module with a DataFrame class
         class MockDataFrame:
             """Mock DataFrame class."""

@@ -361,30 +361,30 @@ class DltAdapter:
 
     def _wrap_raw_source_if_needed(self, source: Any) -> Any:
         """Wrap generators and callables into dlt.resource if needed.
-        
+
         This is used before applying transformations to ensure generators
         and callables are properly wrapped and can be transformed at the
         record level.
-        
+
         For generators, we convert them to lists first to avoid exhaustion
         issues when dlt tries to peek at them during transformation setup.
-        
+
         Args:
             source: Source to potentially wrap.
-            
+
         Returns:
             Wrapped source if it was a generator/callable, or original source.
         """
         assert self._dlt is not None
-        
+
         # Skip None, strings, primitives
         if source is None or isinstance(source, (str, int, float, bool)):
             return source
-        
+
         # Skip if already a dlt resource
         if self._is_dlt_resource(source):
             return source
-        
+
         # Handle generators: convert to list to avoid exhaustion
         # Generators can only be iterated once, so if we need to apply
         # transformations, we convert to list first, then wrap
@@ -404,12 +404,12 @@ class DltAdapter:
                 # Other iterable (set, etc.) - wrap directly
                 logger.debug("Wrapping iterable source for transformations")
                 return self._dlt.resource(source, name="transformed_data")
-        
+
         # Wrap callables - dlt will call them and yield results
         if callable(source):
             logger.debug("Wrapping callable source for transformations")
             return self._dlt.resource(source, name="transformed_data")
-        
+
         return source
 
     def _apply_transformations_to_raw_data(
