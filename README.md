@@ -112,19 +112,21 @@ FluentPipeline.from_sql_table(
 )
 ```
 
-#### `FluentPipeline.from_sql_query(connection, query, **kwargs)`
+#### `FluentPipeline.from_sql_query(connection, query, table_name, **kwargs)`
 
 Load data from a custom SQL query.
 
 **Parameters:**
 - `connection`: SQLAlchemy Engine or connection string
 - `query`: SQL query to execute
+- `table_name`: Name for the destination table where results will be loaded
 - `**kwargs`: Additional dlt sql_database arguments
 
 ```python
 FluentPipeline.from_sql_query(
     "postgresql://user:pass@localhost/db",
-    "SELECT * FROM users WHERE active = true"
+    "SELECT * FROM users WHERE active = true",
+    table_name="active_users"
 )
 ```
 
@@ -285,7 +287,7 @@ query = """
 """
 
 result = (FluentPipeline
-    .from_sql_query("postgresql://localhost/db", query)
+    .from_sql_query("postgresql://localhost/db", query, table_name="user_metrics")
     .to("duckdb")
     .with_dataset("user_metrics")
     .run())

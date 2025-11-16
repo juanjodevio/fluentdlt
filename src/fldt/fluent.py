@@ -160,6 +160,7 @@ class FluentPipeline:
         cls,
         connection: ConnectionType,
         query: str,
+        table_name: str,
         **kwargs: Any,
     ) -> "FluentPipeline":
         """Create a pipeline from a custom SQL query.
@@ -170,25 +171,30 @@ class FluentPipeline:
         Args:
             connection: SQLAlchemy Engine or connection string.
             query: SQL query to execute.
+            table_name: Name for the destination table where results will be loaded.
             **kwargs: Additional arguments passed to dlt.sources.sql_database.
 
         Returns:
             New FluentPipeline instance with SQL query source.
 
         Raises:
-            ValidationError: If connection or query is invalid.
+            ValidationError: If connection, query, or table_name is invalid.
             AdapterError: If dlt sql_database is not available.
 
         Example:
             ```python
             FluentPipeline.from_sql_query(
                 "postgresql://user:pass@localhost/db",
-                "SELECT * FROM users WHERE active = true"
+                "SELECT * FROM users WHERE active = true",
+                table_name="active_users"
             ).to("duckdb").run()
             ```
         """
         try:
+            import dlt
             from dlt.sources.sql_database import sql_database
+            from sqlalchemy import create_engine, text
+            from sqlalchemy.engine import Engine
         except ImportError as e:
             from fldt.exceptions import AdapterError
 
@@ -199,13 +205,45 @@ class FluentPipeline:
 
             raise ValidationError("Query must be a non-empty string")
 
-        logger.info("Creating pipeline from SQL query")
+        if not table_name or not isinstance(table_name, str):
+            from fldt.exceptions import ValidationError
 
-        # Create dlt source with custom query
-        source = sql_database(
-            credentials=connection,
-            **kwargs,
-        ).with_resources(query)
+            raise ValidationError("table_name must be a non-empty string")
+
+        logger.info(
+            "Creating pipeline from SQL query",
+            extra={"table_name": table_name},
+        )
+
+        # Create SQLAlchemy engine if connection is a string
+        if isinstance(connection, str):
+            engine = create_engine(connection)
+        elif isinstance(connection, Engine):
+            engine = connection
+        else:
+            from fldt.exceptions import ValidationError
+
+            raise ValidationError(
+                "Connection must be a SQLAlchemy Engine or connection string"
+            )
+
+        # Create custom resource function that executes the SQL query
+        @dlt.resource(name=table_name)
+        def execute_sql_query() -> Any:
+            """Execute SQL query and yield rows as dictionaries."""
+            with engine.connect() as conn:
+                result = conn.execute(text(query))
+                columns = list(result.keys())
+                for row in result:
+                    yield dict(zip(columns, row))
+
+        # Create a source that contains only our custom resource
+        @dlt.source
+        def sql_query_source() -> Any:
+            """Source containing the SQL query resource."""
+            return execute_sql_query
+
+        source = sql_query_source()
 
         builder = PipelineBuilder()
         builder.set_source(source)

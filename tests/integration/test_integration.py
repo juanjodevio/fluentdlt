@@ -74,9 +74,23 @@ class TestSQLQueryExecution:
         self, test_database: ConnectionString, clean_dlt_state: None
     ) -> None:
         """Load data from custom SQL query."""
-        # Note: SQL queries with dlt require using sql_table with WHERE clause
-        # or creating custom sources. Skipping for now.
-        pytest.skip("Custom SQL queries require advanced dlt configuration")
+        from fldt import FluentPipeline
+
+        # Query to get only active users
+        query = "SELECT * FROM users WHERE is_active = 1"
+        result = (
+            FluentPipeline.from_sql_query(
+                test_database, query, table_name="active_users"
+            )
+            .to("duckdb")
+            .with_name("test_load_from_custom_query")
+            .with_dataset("test_query")
+            .run()
+        )
+
+        # Verify result structure
+        assert result is not None
+        assert hasattr(result, "loads_ids") or hasattr(result, "first_run")
 
     @pytest.mark.skipif(not DUCKDB_AVAILABLE, reason="Requires duckdb")
     def test_load_with_join_query(
