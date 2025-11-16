@@ -355,6 +355,255 @@ class TestDltAdapterTransformations:
 
         assert "Transformation 2 failed" in str(exc_info.value)
 
+    def test_apply_transformations_with_dlt_resource(self) -> None:
+        """apply_transformations applies transformers to dlt resource at record level."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+
+        # Create a mock dlt resource
+        mock_resource = MagicMock()
+        mock_resource.__name__ = "test_resource"
+        mock_resource.name = "test_resource"
+
+        # Mock the transformer decorator
+        mock_transformer_result = MagicMock()
+        mock_transformer_result.__name__ = "transformed_resource"
+        mock_dlt.transformer.return_value = lambda func: func
+        # Make transformer return the function itself (simplified mock)
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        # Transformer that modifies records
+        def add_field(record: dict[str, Any]) -> dict[str, Any]:
+            """Add a field to a single record."""
+            return {**record, "transformed": True}
+
+        # Apply transformation
+        result = adapter.apply_transformations(mock_resource, [add_field])
+
+        # Should have called dlt.transformer
+        assert mock_dlt.transformer.called
+        # Result should be the transformed resource (not the original)
+        assert result is not mock_resource
+
+    def test_apply_transformations_with_dlt_resource_chaining(self) -> None:
+        """apply_transformations chains multiple transformers on dlt resource."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+
+        # Create a mock dlt resource
+        mock_resource = MagicMock()
+        mock_resource.__name__ = "test_resource"
+        mock_resource.name = "test_resource"
+
+        # Track transformer calls
+        transformer_calls = []
+
+        def mock_transformer_decorator(*args, **kwargs):
+            """Mock transformer decorator that tracks calls."""
+            transformer_calls.append((args, kwargs))
+
+            def decorator(func):
+                # Return a mock transformed resource
+                mock_transformed = MagicMock()
+                mock_transformed.__name__ = func.__name__
+                return mock_transformed
+
+            return decorator
+
+        mock_dlt.transformer.side_effect = mock_transformer_decorator
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        def transformer1(record: dict[str, Any]) -> dict[str, Any]:
+            return {**record, "step1": True}
+
+        def transformer2(record: dict[str, Any]) -> dict[str, Any]:
+            return {**record, "step2": True}
+
+        # Apply multiple transformations
+        result = adapter.apply_transformations(
+            mock_resource, [transformer1, transformer2]
+        )
+
+        # Should have called transformer twice (once for each transformer)
+        assert len(transformer_calls) == 2
+        # Result should be the final transformed resource
+        assert result is not None
+
+    def test_apply_transformations_detects_dlt_resource(self) -> None:
+        """_is_dlt_resource correctly identifies dlt resources vs raw data."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        # Raw data should not be detected as dlt resource
+        assert not adapter._is_dlt_resource([{"id": 1}])
+        assert not adapter._is_dlt_resource({"key": "value"})
+        assert not adapter._is_dlt_resource(("item",))
+
+        # Mock dlt resource should be detected
+        mock_resource = MagicMock()
+        mock_resource.__name__ = "test_resource"
+        mock_resource.name = "test_resource"
+        assert adapter._is_dlt_resource(mock_resource)
+
+        # Mock dlt source (has resources attribute)
+        mock_source = MagicMock()
+        mock_source.resources = [mock_resource]
+        assert adapter._is_dlt_resource(mock_source)
+
+    def test_apply_transformations_preserves_raw_data_behavior(self) -> None:
+        """apply_transformations still works with raw data as before."""
+        adapter = DltAdapter()
+        source = [{"value": 10}]
+
+        def double_value(data: list[dict[str, int]]) -> list[dict[str, int]]:
+            return [{"value": item["value"] * 2} for item in data]
+
+        result = adapter.apply_transformations(source, [double_value])
+
+        # Should work exactly as before for raw data
+        assert result == [{"value": 20}]
+        # Should not be the same object (new list created)
+        assert result is not source
+
+    def test_apply_transformations_with_pandas_dataframe(self) -> None:
+        """apply_transformations treats pandas DataFrame as raw data."""
+        try:
+            import pandas as pd
+        except ImportError:
+            pytest.skip("pandas not available")
+
+        adapter = DltAdapter()
+        df = pd.DataFrame({"value": [10, 20, 30]})
+
+        def double_value(data: pd.DataFrame) -> pd.DataFrame:
+            """Double the values in the DataFrame."""
+            result_df = data.copy()
+            result_df["value"] = result_df["value"] * 2
+            return result_df
+
+        result = adapter.apply_transformations(df, [double_value])
+
+        # Should be treated as raw data (not dlt resource)
+        assert isinstance(result, pd.DataFrame)
+        assert not adapter._is_dlt_resource(result)
+        # Verify transformation was applied
+        assert result["value"].tolist() == [20, 40, 60]
+
+    def test_apply_transformations_with_pandas_series(self) -> None:
+        """apply_transformations treats pandas Series as raw data."""
+        try:
+            import pandas as pd
+        except ImportError:
+            pytest.skip("pandas not available")
+
+        adapter = DltAdapter()
+        series = pd.Series([10, 20, 30])
+
+        def double_value(data: pd.Series) -> pd.Series:
+            """Double the values in the Series."""
+            return data * 2
+
+        result = adapter.apply_transformations(series, [double_value])
+
+        # Should be treated as raw data (not dlt resource)
+        assert isinstance(result, pd.Series)
+        assert not adapter._is_dlt_resource(result)
+        # Verify transformation was applied
+        assert result.tolist() == [20, 40, 60]
+
+    def test_is_dlt_resource_detects_pandas_dataframe(self) -> None:
+        """_is_dlt_resource correctly identifies pandas DataFrame as raw data."""
+        try:
+            import pandas as pd
+        except ImportError:
+            pytest.skip("pandas not available")
+
+        adapter = DltAdapter()
+        df = pd.DataFrame({"value": [10, 20, 30]})
+
+        # pandas DataFrame should not be detected as dlt resource
+        assert not adapter._is_dlt_resource(df)
+
+    def test_is_dlt_resource_detects_pandas_series(self) -> None:
+        """_is_dlt_resource correctly identifies pandas Series as raw data."""
+        try:
+            import pandas as pd
+        except ImportError:
+            pytest.skip("pandas not available")
+
+        adapter = DltAdapter()
+        series = pd.Series([10, 20, 30])
+
+        # pandas Series should not be detected as dlt resource
+        assert not adapter._is_dlt_resource(series)
+
+    def test_apply_transformations_with_dlt_resource_receives_records(self) -> None:
+        """Transformers applied to dlt resources receive individual records."""
+        mock_dlt = MagicMock()
+        mock_dlt.sources = MagicMock()
+
+        # Create a mock dlt resource that yields records
+        records_received = []
+
+        def mock_transformer_decorator(*args, **kwargs):
+            """Mock transformer decorator."""
+
+            def decorator(func):
+                # Wrap the function to track what it receives
+                def wrapper(items):
+                    for item in items:
+                        records_received.append(item)
+                        # Call the user's transformer function
+                        # The implementation should call it with the record
+                        yield func(item) if callable(func) else item
+
+                return wrapper
+
+            return decorator
+
+        mock_dlt.transformer.side_effect = mock_transformer_decorator
+
+        adapter = DltAdapter()
+        with patch.dict(
+            "sys.modules", {"dlt": mock_dlt, "dlt.sources": mock_dlt.sources}
+        ):
+            adapter._ensure_dlt_loaded()
+
+        # Create a mock resource
+        mock_resource = MagicMock()
+        mock_resource.__name__ = "test_resource"
+
+        # Transformer that expects a single record (dict)
+        def transform_record(record: dict[str, Any]) -> dict[str, Any]:
+            """Transformer that receives a single record."""
+            return {**record, "transformed": True}
+
+        # Note: This test verifies the structure, but actual record processing
+        # happens during pipeline execution. The key is that transformers
+        # are set up to receive records, not the source object.
+        result = adapter.apply_transformations(mock_resource, [transform_record])
+
+        # Should have created transformer
+        assert mock_dlt.transformer.called
+        # Result should be transformed resource
+        assert result is not None
+
 
 class TestDltAdapterIncrementalLoading:
     """Test DltAdapter incremental loading configuration."""
